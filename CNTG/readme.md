@@ -84,4 +84,5 @@ For system-installed libraries (zlib, libpng, cJSON, re2, sqlite3), they should 
 - Ensure you have the necessary permissions and API access to use your selected LLM provider
 - You can re-run `scripts/main.py` multiple times; Programs will not overwrite existing files
 - Make sure the required library dependencies are built and placed in the correct relative locations as shown above
+- **Important**: The knowledge base and unit tests provided are examples for demonstration purposes. While you can generate tests using our framework, we do not provide complete API knowledge as it may involve undiscovered vulnerabilities. We are currently conducting manual research and appreciate your understanding
 
