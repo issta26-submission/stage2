@@ -40,7 +40,8 @@ Converted seeds will appear in the modified_seed/ directory.
 **4. Generate Invariants**
 Run the following command to generate invariants for the modified seeds:
 ```bash
-python3 scripts/main.py --lib_name
+python3 scripts/main.py --lib name
+python3 scripts/main.py --lib zlib
 ```
 - ✅ Successful programs with invariants are saved in successful_programs/
 - ❌ Programs that failed will be stored in error_programs/, each containing an error message
