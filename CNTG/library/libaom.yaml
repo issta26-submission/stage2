@@ -1,0 +1,234 @@
+aom_codec_av1_dx:
+  description: >
+    Returns the AV1 decoder interface for use with the codec API.
+    This interface is passed to aom_codec_dec_init_ver to create a decoder instance.
+    The returned pointer is a static interface descriptor owned by libaom.
+  params: {}
+  Returns:
+    pointer to aom_codec_iface_t for the AV1 decoder
+  example_invariants:
+    - Returned pointer is not NULL
+    - The interface is valid for decoding only
+    - The returned pointer must not be freed by the caller
+  examples:
+    - (aom_codec_av1_dx() != NULL)
+    - (aom_codec_av1_dx() == aom_codec_av1_dx())
+
+aom_codec_dec_init_ver:
+  description: >
+    Initializes a decoder instance with the provided interface and configuration.
+    This is the versioned initializer that checks ABI compatibility.
+    Must be called before using the codec for decoding.
+  params:
+    ctx: Pointer to aom_codec_ctx_t to initialize
+    iface: Pointer to aom_codec_iface_t (e.g., aom_codec_av1_dx)
+    cfg: Pointer to aom_codec_dec_cfg_t or NULL for defaults
+    flags: Bitmask of initialization flags
+    ver: ABI version (AOM_CODEC_ABI_VERSION)
+  Returns:
+    AOM_CODEC_OK: if success,
+    AOM_CODEC_ERROR: if an error occurs or ABI mismatch
+  example_invariants:
+    - ctx and iface must be non-NULL
+    - ver must equal AOM_CODEC_ABI_VERSION
+    - On success, ctx becomes a valid decoder context
+  examples:
+    - (ctx != NULL && aom_codec_dec_init_ver(ctx, aom_codec_av1_dx(), cfg, 0, AOM_CODEC_ABI_VERSION) == AOM_CODEC_OK)
+    - (ctx != NULL && aom_codec_dec_init_ver(ctx, aom_codec_av1_dx(), NULL, 0, AOM_CODEC_ABI_VERSION) == AOM_CODEC_OK)
+
+aom_codec_decode:
+  description: >
+    Feeds encoded data into a decoder instance for decoding.
+    The decoder may output zero or more frames after this call.
+    Use aom_codec_get_frame to retrieve decoded frames.
+  params:
+    ctx: Pointer to initialized aom_codec_ctx_t decoder
+    data: Pointer to encoded data buffer
+    data_sz: Size of encoded data in bytes
+    user_priv: Optional user pointer passed through to get_frame
+  Returns:
+    AOM_CODEC_OK: if success,
+    AOM_CODEC_ERROR: if decoding fails or input is invalid
+  example_invariants:
+    - ctx must be a valid initialized decoder
+    - data must be non-NULL if data_sz > 0
+    - data_sz may be 0 to signal end-of-stream depending on codec
+  examples:
+    - (ctx != NULL && aom_codec_decode(ctx, data, data_sz, NULL) == AOM_CODEC_OK)
+    - (ctx != NULL && aom_codec_decode(ctx, data, data_sz, user_priv) != AOM_CODEC_ERROR)
+
+aom_codec_destroy:
+  description: >
+    Destroys a codec context and releases all associated resources.
+    After this call, the context must not be used unless reinitialized.
+    Safe to call on a context that was successfully initialized.
+  params:
+    ctx: Pointer to aom_codec_ctx_t to destroy
+  Returns:
+    AOM_CODEC_OK: if success,
+    AOM_CODEC_ERROR: if ctx is invalid
+  example_invariants:
+    - ctx must be a valid initialized codec context
+    - After destroy, the context is no longer usable
+    - Destroy should be paired with a successful init
+  examples:
+    - (ctx != NULL && aom_codec_destroy(ctx) == AOM_CODEC_OK)
+    - (ctx != NULL && aom_codec_destroy(ctx) != AOM_CODEC_ERROR)
+
+aom_codec_error:
+  description: >
+    Returns a brief error string for the last error on a codec context.
+    The returned string is owned by libaom and must not be freed.
+    Useful after any call that returns AOM_CODEC_ERROR.
+  params:
+    ctx: Pointer to aom_codec_ctx_t
+  Returns:
+    pointer to a null-terminated error string
+  example_invariants:
+    - ctx must be a valid codec context
+    - Returned pointer is not NULL
+    - Returned string is read-only
+  examples:
+    - (ctx != NULL && aom_codec_error(ctx) != NULL)
+    - (ctx != NULL && aom_codec_error(ctx)[0] != '\0')
+
+aom_codec_error_detail:
+  description: >
+    Returns a detailed error description for the last error on a codec context.
+    The returned string may be NULL if no detailed error is available.
+    Owned by libaom and must not be freed by the caller.
+  params:
+    ctx: Pointer to aom_codec_ctx_t
+  Returns:
+    pointer to a null-terminated detailed error string, or NULL
+  example_invariants:
+    - ctx must be a valid codec context
+    - Returned pointer must not be freed by the caller
+    - May return NULL if no detail is available
+  examples:
+    - (ctx != NULL && aom_codec_error_detail(ctx) != NULL)
+    - (ctx != NULL && (aom_codec_error_detail(ctx) == NULL || aom_codec_error_detail(ctx)[0] != '\0'))
+
+aom_codec_peek_stream_info:
+  description: >
+    Inspects an encoded data buffer and extracts stream information.
+    This is used to detect stream characteristics without full decoding.
+    The info is written to the provided aom_codec_stream_info_t.
+  params:
+    iface: Pointer to aom_codec_iface_t
+    data: Pointer to encoded data buffer
+    data_sz: Size of encoded data in bytes
+    si: Pointer to aom_codec_stream_info_t to receive info
+  Returns:
+    AOM_CODEC_OK: if stream info is successfully parsed,
+    AOM_CODEC_ERROR: if parsing fails or inputs are invalid
+  example_invariants:
+    - iface and si must be non-NULL
+    - data must be non-NULL if data_sz > 0
+    - On success, si fields are initialized
+  examples:
+    - (iface != NULL && aom_codec_peek_stream_info(iface, data, data_sz, &si) == AOM_CODEC_OK)
+    - (iface != NULL && aom_codec_peek_stream_info(iface, data, data_sz, &si) != AOM_CODEC_ERROR)
+
+aom_codec_set_frame_buffer_functions:
+  description: >
+    Registers external frame buffer allocation and release callbacks for a decoder.
+    Enables the application to manage frame buffers for better integration.
+    Must be called before decoding frames.
+  params:
+    ctx: Pointer to initialized aom_codec_ctx_t decoder
+    cb_get: Callback to obtain a frame buffer
+    cb_release: Callback to release a frame buffer
+    cb_priv: User data passed to callbacks
+  Returns:
+    AOM_CODEC_OK: if success,
+    AOM_CODEC_ERROR: if an error occurs or decoder does not support it
+  example_invariants:
+    - ctx must be a valid initialized decoder
+    - cb_get and cb_release must be non-NULL
+    - Call before aom_codec_decode
+  examples:
+    - (ctx != NULL && aom_codec_set_frame_buffer_functions(ctx, cb_get, cb_release, priv) == AOM_CODEC_OK)
+    - (ctx != NULL && aom_codec_set_frame_buffer_functions(ctx, cb_get, cb_release, NULL) != AOM_CODEC_ERROR)
+
+aom_img_alloc:
+  description: >
+    Allocates and initializes an image structure with the requested format and dimensions.
+    The image buffer is allocated by libaom and must be freed with aom_img_free.
+    Useful for supplying raw frames to the encoder or receiving decoder output.
+  params:
+    img: Pointer to aom_image_t to initialize, or NULL to allocate a new one
+    fmt: Image format (aom_img_fmt_t)
+    d_w: Displayed width in pixels
+    d_h: Displayed height in pixels
+    align: Byte alignment for the image buffer
+  Returns:
+    pointer to aom_image_t on success,
+    NULL on allocation failure
+  example_invariants:
+    - d_w and d_h must be positive
+    - Returned image must be freed with aom_img_free
+    - If img is non-NULL, it is initialized in place
+  examples:
+    - (aom_img_alloc(NULL, AOM_IMG_FMT_I420, 640, 480, 1) != NULL)
+    - (img = aom_img_alloc(img, AOM_IMG_FMT_I420, 128, 128, 16), img != NULL)
+
+aom_img_alloc_with_border:
+  description: >
+    Allocates and initializes an image structure with extra border pixels.
+    The border can be used for padding and filtering operations.
+    The image buffer must be freed with aom_img_free.
+  params:
+    img: Pointer to aom_image_t to initialize, or NULL to allocate a new one
+    fmt: Image format (aom_img_fmt_t)
+    d_w: Displayed width in pixels
+    d_h: Displayed height in pixels
+    align: Byte alignment for the image buffer
+    border: Border size in pixels
+  Returns:
+    pointer to aom_image_t on success,
+    NULL on allocation failure
+  example_invariants:
+    - d_w and d_h must be positive
+    - border must be non-negative
+    - Returned image must be freed with aom_img_free
+  examples:
+    - (aom_img_alloc_with_border(NULL, AOM_IMG_FMT_I420, 640, 480, 1, 32) != NULL)
+    - (img = aom_img_alloc_with_border(img, AOM_IMG_FMT_I420, 64, 64, 16, 8), img != NULL)
+
+aom_img_free:
+  description: >
+    Frees the image buffer and associated resources allocated by aom_img_alloc.
+    If the image was allocated in-place, the structure itself is not freed.
+    Safe to call with NULL.
+  params:
+    img: Pointer to aom_image_t to free
+  Returns:
+    nothing: this is a void function with no return value
+  example_invariants:
+    - img must have been allocated by aom_img_alloc or aom_img_alloc_with_border
+    - Safe to call with NULL
+    - After free, image data pointers are invalid
+  examples:
+    - (img = aom_img_alloc(NULL, AOM_IMG_FMT_I420, 64, 64, 1), aom_img_free(img))
+    - (img = aom_img_alloc_with_border(NULL, AOM_IMG_FMT_I420, 64, 64, 1, 8), aom_img_free(img))
+
+aom_uleb_encode:
+  description: >
+    Encodes an unsigned integer using unsigned LEB128 encoding.
+    The encoded bytes are written to the output buffer.
+    Returns the number of bytes written.
+  params:
+    value: Unsigned integer value to encode
+    buf: Output buffer to receive encoded bytes
+    buf_size: Size of output buffer in bytes
+  Returns:
+    number of bytes written on success,
+    0 if the buffer is too small
+  example_invariants:
+    - buf must be non-NULL if buf_size > 0
+    - Return value is between 1 and buf_size on success
+    - Returns 0 if buf_size is insufficient
+  examples:
+    - (aom_uleb_encode(300, buf, buf_size) > 0)
+    - (aom_uleb_encode(1, buf, 1) == 1)

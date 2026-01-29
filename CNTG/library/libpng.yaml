@@ -1,0 +1,1250 @@
+png_access_version_number:
+  description: >
+    Returns the version number of the libpng library.
+  parameters: []
+  Returns: The version number.
+  example_invariants:
+    - The return number is bigger than 0.
+  example_code:
+    - png_access_version_number()>0
+
+png_create_info_struct:
+  description: >
+    Allocates and initializes a png_info structure using the memory context of the provided png_struct.
+  params:
+    png_ptr: A pointer to an existing, valid png_struct used to allocate the info structure.
+  Returns:
+    Valid Pointer: if memory allocation is successful.
+    NULL: if the input png_ptr is NULL or if memory allocation fails.
+  example_invariants:
+    - png_ptr must point to a valid, previously allocated png_struct.
+    - The returned png_info structure is initially empty and must be populated by reading info or setting values.
+    - The lifetime of the created png_info structure is tied to the png_ptr; destroying png_ptr usually invalidates this info struct.
+    - Multiple info structs can be allocated for the same png_struct (e.g., info_ptr and end_info_ptr).
+  examples:
+    - png_create_info_struct(png_ptr) != NULL
+    - png_create_info_struct(NULL) == NULL
+
+png_create_read_struct:
+  description: >
+    Allocates and initializes the internal state for reading a PNG file (png_struct).
+  params:
+    user_png_ver: The version string of the library (usually PNG_LIBPNG_VER_STRING).
+    error_ptr: A user-defined pointer for error handling contexts (can be NULL).
+    error_fn: A user-defined error callback function (can be NULL).
+    warn_fn: A user-defined warning callback function (can be NULL).
+  Returns:
+    Valid Pointer: if the version matches and memory is allocated.
+    NULL: if the version string is incompatible or memory is exhausted.
+  example_invariants:
+    - user_png_ver must match the internal library version; otherwise, the function Returns NULL to prevent ABI mismatches.
+    - If error_fn is NULL, the library defaults to using stderr for error reporting.
+    - The returned structure contains default settings for gamma, interlace handling, and buffer sizes.
+    - This function must be called before any other read operations (like png_read_info).
+  examples:
+    - png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL) != NULL
+    - png_create_read_struct("1.0.0", NULL, NULL, NULL) == NULL
+
+png_create_read_struct_2:
+  description: >
+    Allocates a read-mode png_struct with user-defined memory allocation callbacks.
+  params:
+    user_png_ver: The version string of the library.
+    error_ptr: User pointer for error handling.
+    error_fn: User error callback.
+    warn_fn: User warning callback.
+    mem_ptr: A user-defined pointer passed to memory callbacks (can be NULL).
+    malloc_fn: A pointer to a custom memory allocation function.
+    free_fn: A pointer to a custom memory deallocation function.
+  Returns:
+    Valid Pointer: if successful.
+    NULL: if failure occurs.
+  example_invariants:
+    - If malloc_fn is provided, free_fn should also be provided to ensure symmetry in memory management.
+    - The mem_ptr argument is stored in the struct and passed unchanged to malloc_fn and free_fn during execution.
+    - The function will fail and return NULL if malloc_fn Returns NULL during the initial struct allocation.
+    - Internal buffers created by this struct will use the provided custom allocator.
+  examples:
+    - png_create_read_struct_2(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL, NULL, my_malloc, my_free) != NULL
+
+png_create_write_struct:
+  description: >
+    Allocates and initializes the internal state for writing a PNG file (png_struct).
+  params:
+    user_png_ver: The version string of the library.
+    error_ptr: User pointer for error handling.
+    error_fn: User error callback.
+    warn_fn: User warning callback.
+  Returns:
+    Valid Pointer: if initialization succeeds.
+    NULL: if version mismatch or memory failure.
+  example_invariants:
+    - The returned structure is configured with default write settings (compression level, filter strategy).
+    - Providing NULL for user_png_ver results in immediate failure (Returns NULL).
+    - This structure is distinct from read structures; it cannot be used with png_read_* functions.
+    - If error handling callbacks are provided, they take precedence over default stderr output.
+  examples:
+    - png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL) != NULL
+    - png_create_write_struct(NULL, NULL, NULL, NULL) == NULL
+
+png_create_write_struct_2:
+  description: >
+    Allocates a write-mode png_struct with user-defined memory allocation callbacks.
+  params:
+    user_png_ver: The version string.
+    error_ptr: User pointer for error handling.
+    error_fn: User error callback.
+    warn_fn: User warning callback.
+    mem_ptr: User pointer for memory callbacks.
+    malloc_fn: Custom allocation function.
+    free_fn: Custom deallocation function.
+  Returns:
+    Valid Pointer: if successful.
+    NULL: if failure occurs.
+  example_invariants:
+    - If malloc_fn is NULL, the mem_ptr and free_fn arguments are ignored, and it behaves like png_create_write_struct.
+    - The custom memory allocator must be capable of allocating the initial png_struct size, or NULL is returned.
+    - The returned pointer must be destroyed using png_destroy_write_struct to avoid leaking resources managed by the custom allocator.
+    - Usage of this function implies that the application assumes responsibility for memory alignment if required by the custom allocator.
+  examples:
+    - png_create_write_struct_2(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL, NULL, my_malloc, my_free) != NULL
+
+png_data_freer:
+  description: >
+    Changes the data ownership flags within the png_info structure. It determines
+    whether libpng or the user is responsible for freeing specific chunks of data.
+  params:
+    png_ptr: Pointer to the png_struct.
+    info_ptr: Pointer to the png_info structure.
+    freer: The ownership model (PNG_DESTROY_WILL_FREE_DATA or PNG_USER_WILL_FREE_DATA).
+    mask: Bitmask of data chunks to modify (e.g., PNG_FREE_PLTE).
+  Returns:
+    None (void).
+  example_invariants:
+    - png_ptr and info_ptr must be valid (non-NULL) before calling.
+    - After calling with PNG_DESTROY_WILL_FREE_DATA, the library assumes responsibility for freeing the memory, so the user must NOT manually free it.
+    - After calling with PNG_USER_WILL_FREE_DATA, the user MUST manually free the memory to avoid leaks.
+    - The function modifies the internal 'free_me' flags of the info_ptr.
+  examples:
+    - (png_data_freer(png_ptr, info_ptr, PNG_USER_WILL_FREE_DATA, PNG_FREE_PLTE), 1)
+    - (png_ptr != NULL) ? (png_data_freer(png_ptr, info_ptr, 0, 0), 1) : 0
+
+png_destroy_read_struct:
+  description: >
+    Destroys the read struct and associated info structs, freeing all internal memory.
+    Crucially, it sets the passed pointers to NULL to prevent use-after-free.
+  params:
+    png_ptr_ptr: Address of the pointer to png_struct (e.g., &png_ptr).
+    info_ptr_ptr: Address of the pointer to png_info (e.g., &info_ptr), can be NULL.
+    end_info_ptr_ptr: Address of the pointer to end_info (e.g., &end_info), can be NULL.
+  Returns:
+    None (void).
+  example_invariants:
+    - The function guarantees that *png_ptr_ptr is set to NULL after execution.
+    - If info_ptr_ptr is provided, *info_ptr_ptr is also set to NULL.
+    - Calling this function multiple times is safe ONLY IF the pointers were successfully set to NULL by the first call (safe handling of NULL inputs).
+    - All internal buffers (zlib state, row buffers) are invalidated.
+  examples:
+    - (png_destroy_read_struct(&png_ptr, &info_ptr, NULL), png_ptr == NULL)
+    - (png_destroy_read_struct(&png_ptr, NULL, NULL), png_ptr == NULL)
+
+png_destroy_read_struct:
+  description: >
+    Destroys the write struct and associated info struct, freeing memory.
+    Similar to read_struct, it nullifies the user's pointers.
+  params:
+    png_ptr_ptr: Address of the pointer to png_struct.
+    info_ptr_ptr: Address of the pointer to png_info, can be NULL.
+  Returns:
+    None (void).
+  example_invariants:
+    - Upon return, the verifyable post-condition is that *png_ptr_ptr is NULL.
+    - Any data written to the struct but not yet flushed may be lost if not finalized before this call.
+    - It uses the free_fn callback (if custom defined) to release memory.
+  examples:
+    - (png_destroy_write_struct(&png_ptr, &info_ptr), info_ptr == NULL)
+    - (png_destroy_write_struct(&png_ptr, NULL), png_ptr == NULL)
+
+png_error_ptr:
+  description: >
+    Typedef for a user-provided callback function that handles fatal errors.
+    This function is not called directly by the user but is invoked by libpng.
+  params:
+    png_ptr: The png_struct where the error happened.
+    message: The error message string.
+  Returns:
+    Does not return (expected to perform a longjmp or exit).
+  example_invariants:
+    - A valid png_error_ptr function must not return control to the calling libpng code.
+    - The message parameter passed to it is guaranteed to be a valid, null-terminated C string.
+    - The function pointer itself must not be NULL when passed to png_create_..._struct functions.
+  examples:
+    - (my_error_fn != NULL) ? 1 : 0
+    - (sizeof(png_error_ptr) == sizeof(void*))
+
+png_free:
+  description: >
+    Frees a specific block of memory allocated by libpng.
+    It ensures the correct free function (default or custom) is used.
+  params:
+    png_ptr: The png_struct associated with the memory.
+    ptr: The pointer to the memory to free.
+  Returns:
+    None (void).
+  example_invariants:
+    - If ptr is NULL, the function does nothing (safe no-op).
+    - If ptr is not NULL, it must have been allocated by png_malloc associated with the same png_ptr.
+    - After calling png_free, the pointer ptr becomes invalid (dangling) and must not be dereferenced.
+    - png_ptr must be valid; it defines which free function (standard or custom) is called.
+  examples:
+    - ptr ? (png_free(png_ptr, ptr), 1) : 1
+    - (png_free(png_ptr, NULL), 1)
+
+
+png_free_data:
+  description: >
+    Frees selected data inside the info structure. This allows granular control over
+    memory release (e.g., freeing only the palette or text chunks) without destroying
+    the entire structure.
+  params:
+    png_ptr: Pointer to the png_struct.
+    info_ptr: Pointer to the png_info structure containing the data.
+    mask: A bitmask specifying which data items to free (e.g., PNG_FREE_PLTE, PNG_FREE_TRNS).
+    num: The sequence number of the item to free, or -1 to free all items matching the mask.
+  Returns:
+    None (void).
+  example_invariants:
+    - png_ptr and info_ptr must be valid pointers.
+    - After execution, the pointers to the specific data types indicated by the mask within info_ptr are set to NULL.
+    - If num is -1, all entries of the specified type (e.g., all text chunks) are freed; otherwise only the nth entry is freed.
+    - The valid status flags in the info_ptr are updated to reflect that the data is no longer present.
+  examples:
+    - (png_free_data(png_ptr, info_ptr, PNG_FREE_PLTE, -1), 1)
+    - (png_free_data(png_ptr, info_ptr, PNG_FREE_ALL, -1), 1)
+
+png_get_chunk_cache_max:
+  description: >
+    Retrieves the maximum number of ancillary chunks that the library is allowed to
+    keep in the cache during reading. This prevents easy Denial of Service (DoS) attacks via
+    files with thousands of text chunks.
+  params:
+    png_ptr: Pointer to the png_struct.
+  Returns:
+    png_uint_32: The current limit on the number of cached chunks.
+  example_invariants:
+    - The return value represents the upper bound; attempting to read a file with more chunks than this may result in a warning or error.
+    - png_ptr must be initialized for reading.
+    - The default value is typically 1000 unless modified by png_set_chunk_cache_max.
+  examples:
+    - png_get_chunk_cache_max(png_ptr) > 0
+    - png_get_chunk_cache_max(png_ptr) != 0xFFFFFFFF
+
+png_get_chunk_malloc_max:
+  description: >
+    Retrieves the maximum amount of memory (in bytes) that libpng is permitted to
+    allocate for a single chunk. This is a security limit to prevent memory exhaustion attacks.
+  params:
+    png_ptr: Pointer to the png_struct.
+  Returns:
+    png_alloc_size_t: The maximum allocation size limit.
+  example_invariants:
+    - A return value of 0 implies there is no specific limit (or it is set to the default system max).
+    - The value returned restricts the size of decompressed zTXt/iTXt chunks or other large data blocks.
+    - png_ptr must be a valid structure pointer.
+  examples:
+    - png_get_chunk_malloc_max(png_ptr) == 0 ? 1 : png_get_chunk_malloc_max(png_ptr) > 1024
+    - png_get_chunk_malloc_max(png_ptr) != (png_alloc_size_t)-1
+
+png_get_copyright:
+  description: >
+    Returns the copyright string associated with the libpng library version being used.
+  params:
+    png_ptr: Pointer to the png_struct (can often be NULL in implementation, but context implies a pointer).
+  Returns:
+    png_const_charp: A pointer to a constant string containing the copyright text.
+  example_invariants:
+    - The returned pointer is never NULL.
+    - The string contents are statically allocated and must not be freed by the user.
+    - The string typically starts with " libpng version" or similar identifier.
+    - Accessing the first character of the returned string is always safe.
+  examples:
+    - png_get_copyright(png_ptr) != NULL
+    - "*png_get_copyright(NULL)!=0"
+
+png_get_filter_type:
+  description: >
+    Retrieves the filter method type defined in the IHDR chunk of the PNG image.
+    For standard PNGs, this should always be 0.
+  params:
+    png_ptr: Pointer to the png_struct.
+    info_ptr: Pointer to the png_info structure.
+  Returns:
+    png_byte: The filter type value (usually PNG_FILTER_TYPE_BASE).
+  example_invariants:
+    - The return value corresponds to the filter method used for the entire image, not the per-row filter type.
+    - The info_ptr must contain valid IHDR data (info_ptr->valid & PNG_INFO_IHDR).
+    - In the current PNG specification, the only valid return value is 0 (PNG_FILTER_TYPE_BASE).
+  examples:
+    - png_get_filter_type(png_ptr, info_ptr) == 0
+    - png_get_filter_type(png_ptr, info_ptr) == PNG_FILTER_TYPE_BASE
+
+
+png_get_header_ver:
+  description: >
+    Returns the version string of the libpng header file that was used when the
+    application was compiled. This is typically a macro or function wrapping PNG_LIBPNG_VER_STRING.
+  params:
+    png_ptr: Pointer to the png_struct (can be NULL).
+  Returns:
+    png_const_charp: The version string (e.g., "1.6.37").
+  example_invariants:
+    - The returned string represents the compile-time version, not necessarily the run-time library version.
+    - The pointer returned is to a static string and must not be freed.
+    - It is guaranteed to be non-NULL.
+  examples:
+    - png_get_header_ver(NULL) != NULL
+    - "*png_get_header_ver(png_ptr)!=0"
+
+png_get_header_version:
+  description: >
+    Returns a longer, more descriptive version string of the library header,
+    often including the release date (e.g., " libpng version 1.6.37 - April 14, 2019\n").
+  params:
+    png_ptr: Pointer to the png_struct (can be NULL).
+  Returns:
+    png_const_charp: The descriptive version string.
+  example_invariants:
+    - The string is static and constant.
+    - This function provides human-readable context useful for logging or debugging.
+    - The returned string usually starts with a space or distinct identifier.
+  examples:
+    - png_get_header_version(png_ptr) != NULL
+    - png_get_header_version(NULL) != NULL
+
+png_get_image_height:
+  description: >
+    Retrieves the height of the image in pixels from the info structure.
+    This value is extracted from the IHDR chunk data.
+  params:
+    png_ptr: Pointer to the png_struct.
+    info_ptr: Pointer to the png_info structure.
+  Returns:
+    png_uint_32: The height of the image.
+  example_invariants:
+    - The return value must be greater than 0 for a valid image.
+    - info_ptr must have been successfully filled (e.g., via png_read_info) before calling this.
+    - The value corresponds to the height field in the IHDR chunk.
+  examples:
+    - png_get_image_height(png_ptr, info_ptr) > 0
+    - png_get_image_height(png_ptr, info_ptr) != 0
+
+png_get_libpng_ver:
+  description: >
+    Returns the version string of the actual shared library (DLL/so) currently loaded
+    in memory at runtime. This is used to check for binary compatibility.
+  params:
+    png_ptr: Pointer to the png_struct (can be NULL).
+  Returns:
+    png_const_charp: The runtime library version string.
+  example_invariants:
+    - Ideally, this string should match png_get_header_ver(NULL) to ensure ABI compatibility.
+    - The return value is never NULL.
+    - It allows the application to detect if it's running against an older or newer DLL than expected.
+  examples:
+    - png_get_libpng_ver(NULL) != NULL
+    - png_get_libpng_ver(png_ptr) == png_get_header_ver(NULL) ? 1 : 0
+
+png_get_mem_ptr:
+  description: >
+    Retrieves the user-defined memory pointer (mem_ptr) that was passed to
+    png_create_read_struct_2 or png_create_write_struct_2.
+  params:
+    png_ptr: Pointer to the png_struct.
+  Returns:
+    png_voidp: The pointer to the custom memory context, or NULL if not set.
+  example_invariants:
+    - If the standard png_create_read_struct was used, this function Returns NULL.
+    - The returned pointer is the exact value passed during creation; libpng does not modify it.
+    - This pointer is intended for use inside custom malloc_fn and free_fn callbacks.
+  examples:
+    - png_get_mem_ptr(png_ptr) == NULL
+    - has_custom_allocator ? png_get_mem_ptr(png_ptr) != NULL : 1
+
+
+png_get_rowbytes:
+  description: >
+    Returns the number of bytes needed to hold a single row of the image.
+    This value is calculated based on the width, bit depth, and color type, and is updated
+    if any transformations (like expanding palette to RGB) have been requested via png_read_update_info.
+  params:
+    png_ptr: Pointer to the png_struct.
+    info_ptr: Pointer to the png_info structure.
+  Returns:
+    png_size_t: The number of bytes in a row.
+  example_invariants:
+    - The returned value must be strictly greater than 0 for any valid image dimension.
+    - If transformations are applied, this value reflects the format of the output row, not necessarily the file format.
+    - It must be at least (width * channels * bit_depth + 7) / 8.
+  examples:
+    - png_get_rowbytes(png_ptr, info_ptr) > 0
+    - (png_get_image_width(png_ptr, info_ptr) > 0) ? (png_get_rowbytes(png_ptr, info_ptr) >= png_get_image_width(png_ptr, info_ptr)) : 1
+
+png_get_rows:
+  description: >
+    Retrieves the array of row pointers associated with the info structure.
+    These pointers point to the actual pixel data of the image.
+  params:
+    png_ptr: Pointer to the png_struct.
+    info_ptr: Pointer to the png_info structure.
+  Returns:
+    png_bytepp: A pointer to an array of pointers (one per row), or NULL if row pointers have not been set/allocated.
+  example_invariants:
+    - If png_read_image has been successfully called (and data buffered), this function usually returns a non-NULL pointer.
+    - The returned array, if valid, contains exactly 'height' pointers.
+    - If the application manages memory manually, this might return NULL unless png_set_rows was called.
+  examples:
+    - png_get_rows(png_ptr, info_ptr) != NULL
+    - (png_get_rows(png_ptr, info_ptr) != NULL) ? (png_get_rows(png_ptr, info_ptr)[0] != NULL) : 1
+
+png_get_user_height_max:
+  description: >
+    Returns the maximum allowable image height set for the current read operation.
+    This serves as a security safeguard against processing maliciously crafted files with extreme dimensions.
+  params:
+    png_ptr: Pointer to the png_struct.
+  Returns:
+    png_uint_32: The maximum height limit (default is typically 1,000,000).
+  example_invariants:
+    - The returned value determines whether png_read_info will reject an image with a large height.
+    - It is always greater than 0.
+    - Unless changed by png_set_user_limits, it returns the default library limit.
+  examples:
+    - png_get_user_height_max(png_ptr) >= 1000000
+    - png_get_user_height_max(png_ptr) != 0
+
+png_get_x_pixels_per_meter:
+  description: >
+    Returns the horizontal physical resolution of the image in pixels per meter,
+    extracted from the pHYs (Physical Pixel Dimensions) chunk.
+  params:
+    png_ptr: Pointer to the png_struct.
+    info_ptr: Pointer to the png_info structure.
+  Returns:
+    png_uint_32: The X resolution in pixels per meter, or 0 if the pHYs chunk is missing or empty.
+  example_invariants:
+    - A return value of 0 implies the resolution is unknown or unspecified.
+    - This function requires the PNG_INFO_pHYs flag to be set in the info_ptr valid flags.
+    - The value is an integer; high-precision aspect ratios might need combining with the Y resolution.
+  examples:
+    - png_get_valid(png_ptr, info_ptr, PNG_INFO_pHYs) ? png_get_x_pixels_per_meter(png_ptr, info_ptr) != 0 : 1
+    - png_get_x_pixels_per_meter(png_ptr, info_ptr) == 0
+
+
+png_image_begin_read_from_memory:
+  description: >
+    Initializes a png_image structure by reading the header information (IHDR)
+    from a PNG file stored in a memory buffer. It prepares the structure for
+    subsequent data reading but does not yet decode the pixel data.
+  params:
+    image: Pointer to a png_image structure to be initialized.
+    memory: Pointer to the start of the PNG data in memory.
+    size: The size of the memory block in bytes.
+  Returns:
+    int: Non-zero (true) if the image header was successfully parsed; 0 (false) on error.
+  example_invariants:
+    - On success, the image->width, image->height, and image->format fields are populated with valid data.
+    - On failure (return 0), the image->warning_or_error field describes the error.
+    - The memory buffer must contain a valid PNG signature and IHDR chunk.
+    - image->opaque is allocated and non-NULL on success to hold internal state.
+  examples:
+    - png_image_begin_read_from_memory(image, buf, size) != 0
+    - (png_image_begin_read_from_memory(image, buf, size) != 0) ? (image->width > 0) : (image->warning_or_error != 0)
+
+png_image_free:
+  description: >
+    Frees the internal opaque memory associated with a png_image structure.
+    This function should be called to clean up if the read/write operation is
+    abandoned or fails, or after usage is complete.
+  params:
+    image: Pointer to the png_image structure.
+  Returns:
+    None (void).
+  example_invariants:
+    - After execution, image->opaque is set to NULL.
+    - It is safe to call this function on a png_image struct that has already been freed (idempotent).
+    - It does not free the png_image structure itself, only the internal state pointed to by 'opaque'.
+  examples:
+    - (png_image_free(image), image->opaque == NULL)
+    - (png_image_free(image), 1)
+
+png_image_write_to_file:
+  description: >
+    Writes the image data defined by the png_image structure and the provided
+    pixel buffer to a file on the disk. It handles compression and file IO automatically.
+  params:
+    image: Pointer to the initialized png_image structure describing the input format.
+    file: The path (filename) to write to.
+    convert_to_8bit: Flag to convert 16-bit data to 8-bit (pass 0 for no conversion).
+    buffer: Pointer to the raw image pixel data.
+    row_stride: The number of bytes per row in the buffer (pass 0 to auto-calculate).
+    colormap: Pointer to the palette if the image format requires one (otherwise NULL).
+  Returns:
+    int: Non-zero (true) on success; 0 (false) on failure.
+  example_invariants:
+    - If the function returns 0, the file was not successfully written or closed.
+    - image->format must be set correctly to match the buffer layout before calling.
+    - On failure, image->message contains the error description.
+  examples:
+    - png_image_write_to_file(image, "out.png", 0, buffer, 0, NULL) != 0
+    - “(png_image_write_to_file(image, "out.png", 0, buf, 0, NULL) == 0) ? (image->warning_or_error != 0):1”
+
+png_image_write_to_memory:
+  description: >
+    Writes the PNG data to a memory buffer instead of a file. It can also be
+    used to calculate the required buffer size before the actual write.
+  params:
+    image: Pointer to the png_image structure.
+    memory: Pointer to the destination buffer (can be NULL to query size).
+    memory_bytes: Pointer to a size_t. Input-buffer size; Output-bytes written or required.
+    convert_to_8bit: Flag for 16-to-8 bit conversion.
+    buffer: Pointer to the raw pixel data.
+    row_stride: Bytes per row in the input buffer.
+    colormap: Pointer to the palette (if applicable).
+  Returns:
+    int: Non-zero (true) on success; 0 (false) on failure.
+  example_invariants:
+    - If 'memory' is NULL, the function calculates the encoded size and stores it in 'memory_bytes' without writing data (returns 1).
+    - If 'memory' is not NULL, 'memory_bytes' must contain the available size; if the output exceeds this, the function fails.
+    - On success, 'memory_bytes' is updated to the actual size of the generated PNG data.
+  examples:
+    - png_image_write_to_memory(image, NULL, &size, 0, buf, 0, NULL) != 0
+    - (png_image_write_to_memory(image, mem, &size, 0, buf, 0, NULL) != 0) ? (size > 0) : 1
+
+png_image_write_to_stdio:
+  description: >
+    Writes the PNG data to an already open C standard I/O stream (FILE*).
+    This allows writing to stdout or pipes.
+  params:
+    image: Pointer to the png_image structure.
+    file: A FILE pointer opened for writing (binary mode).
+    convert_to_8bit: Flag for 16-to-8 bit conversion.
+    buffer: Pointer to the raw pixel data.
+    row_stride: Bytes per row in the input buffer.
+    colormap: Pointer to the palette (if applicable).
+  Returns:
+    int: Non-zero (true) on success; 0 (false) on failure.
+  example_invariants:
+    - The FILE pointer 'file' must remain valid and open during the call.
+    - The function does not close the file; the caller is responsible for fclose.
+    - Returns 0 if an I/O error occurs (e.g., disk full) or if the image format is invalid.
+  examples:
+    - png_image_write_to_stdio(image, stdout, 0, buffer, 0, NULL) != 0
+    - file_ptr ? png_image_write_to_stdio(image, file_ptr, 0, buf, 0, NULL) != 0 : 0
+
+
+png_init_io:
+  description: >
+    Initializes the default input/output functions for the PNG structure to use
+    a standard C stream (FILE*). This is the standard way to read/write files
+    without defining custom callbacks.
+  params:
+    png_ptr: Pointer to the png_struct.
+    fp: A pointer to an open file stream (FILE*) used for reading or writing.
+  Returns:
+    None (void).
+  example_invariants:
+    - The file pointer fp must be opened in binary mode (e.g., "rb" or "wb") to prevent data corruption on non-Unix systems.
+    - This function replaces any previously registered custom read/write functions in the png_ptr.
+    - If png_ptr is NULL, the function triggers a crash (no internal null check is performed in some versions).
+  examples:
+    - (fp != NULL) ? (png_init_io(png_ptr, fp), 1) : 0
+    - (png_init_io(png_ptr, fp), png_get_io_ptr(png_ptr) == fp)
+
+png_set_IHDR:
+  description: >
+    Sets the critical image header information (IHDR chunk) in the info structure.
+    This includes image dimensions, bit depth, color type, and compression methods.
+  params:
+    png_ptr: Pointer to the png_struct.
+    info_ptr: Pointer to the png_info structure.
+    width: Image width in pixels.
+    height: Image height in pixels.
+    bit_depth: Bit depth per channel (1, 2, 4, 8, 16).
+    color_type: Color format (e.g., PNG_COLOR_TYPE_RGB, PNG_COLOR_TYPE_GRAY).
+    interlace_type: Interlace method (PNG_INTERLACE_NONE or PNG_INTERLACE_ADAM7).
+    compression_type: Compression method (always PNG_COMPRESSION_TYPE_BASE).
+    filter_method: Filter method (always PNG_FILTER_TYPE_BASE).
+  Returns:
+    None (void).
+  example_invariants:
+    - The combination of bit_depth and color_type must be valid according to the PNG ISO specification (e.g., Palette allows 1, 2, 4, 8 bits; RGB allows 8, 16 bits).
+    - After calling this, the info_ptr->valid flag includes PNG_INFO_IHDR, indicating the header is set.
+    - width and height must be non-zero and within the user limits set by png_set_user_limits.
+  examples:
+    - (png_set_IHDR(png_ptr, info_ptr, 100, 100, 8, PNG_COLOR_TYPE_RGB, 0, 0, 0), 1)
+    - (width > 0) ? (png_set_IHDR(png_ptr, info_ptr, width, height, 8, 2, 0, 0, 0), 1) : 0
+
+png_set_bgr:
+  description: >
+    Sets a transformation to swap the blue and red channels. This converts RGB pixels
+    to BGR format, or RGBA to BGRA. Useful for compatibility with Windows bitmaps or OpenCV.
+  params:
+    png_ptr: Pointer to the png_struct.
+  Returns:
+    None (void).
+  example_invariants:
+    - This function only sets a flag; the actual pixel data modification happens during png_read_image or png_write_image.
+    - It must be called before png_read_update_info is invoked.
+    - It has no effect on grayscale images unless they are converted to RGB first.
+  examples:
+    - (png_set_bgr(png_ptr), 1)
+    - (png_get_color_type(png_ptr, info_ptr) == PNG_COLOR_TYPE_RGB) ? (png_set_bgr(png_ptr), 1) : 0
+
+png_set_chunk_malloc_max:
+  description: >
+    Sets the maximum size of memory that libpng is allowed to allocate for a single chunk.
+    This acts as a safeguard against excessive memory usage or DoS attacks from crafted files.
+  params:
+    png_ptr: Pointer to the png_struct.
+    user_chunk_malloc_max: The limit in bytes (0 implies the system default or unlimited).
+  Returns:
+    None (void).
+  example_invariants:
+    - Setting this value does not free existing memory, but restricts future allocations for ancillary chunks like zTXt or iCCP.
+    - If a chunk in the input file exceeds this size, libpng will issue a "chunk data is too large" error.
+    - The limit applies to the decompressed size of compressed chunks.
+  examples:
+    - (png_set_chunk_malloc_max(png_ptr, 4000000), png_get_chunk_malloc_max(png_ptr) == 4000000)
+    - (png_set_chunk_malloc_max(png_ptr, 0), 1)
+
+png_set_compression_buffer_size:
+  description: >
+    Sets the size of the intermediate buffer used by the zlib compression/decompression stream.
+    Adjusting this can tune performance or reduce memory footprint.
+  params:
+    png_ptr: Pointer to the png_struct.
+    size: The buffer size in bytes (default is typically 8192).
+  Returns:
+    None (void).
+  example_invariants:
+    - The size must be at least 6 bytes (zlib requirement), though typical values are much larger (e.g., 8192).
+    - This setting does not change the resulting PNG file size, only how libpng interacts with zlib internally.
+    - The buffer is reallocated immediately or upon the next read/write operation involving compression.
+  examples:
+    - (png_set_compression_buffer_size(png_ptr, 2048), 1)
+    - (size >= 8192) ? (png_set_compression_buffer_size(png_ptr, size), 1) : 0
+
+
+png_set_compression_level:
+  description: >
+    Sets the zlib compression level used for writing the image data.
+    This balances between compression speed and file size.
+  params:
+    png_ptr: Pointer to the png_struct.
+    level: The compression level, ranging from 0 (no compression) to 9 (maximum compression).
+  Returns:
+    None (void).
+  example_invariants:
+    - The default level is usually 6 (Z_DEFAULT_COMPRESSION) if this function is not called.
+    - Level 0 results in faster writing but larger files; level 9 is slower but produces smaller files.
+    - This setting must be applied before the header is written (before png_write_info).
+  examples:
+    - (png_set_compression_level(png_ptr, 9), 1)
+    - (level >= 0 && level <= 9) ? (png_set_compression_level(png_ptr, level), 1) : 0
+
+png_set_compression_mem_level:
+  description: >
+    Sets the memory usage level for the internal zlib compression state.
+    It controls how much memory should be allocated for the compression history window.
+  params:
+    png_ptr: Pointer to the png_struct.
+    mem_level: The memory level, ranging from 1 (minimum memory, slower) to 9 (maximum memory, faster).
+  Returns:
+    None (void).
+  example_invariants:
+    - The default is typically 8.
+    - Higher values require more memory (up to approx 256KB for level 9) but allow for better compression ratios and speed.
+    - Setting this too high on memory-constrained systems may cause allocation failures.
+  examples:
+    - (png_set_compression_mem_level(png_ptr, 8), 1)
+    - (png_set_compression_mem_level(png_ptr, 1), 1)
+
+png_set_eXIf_1:
+  description: >
+    Sets the eXIf chunk data in the info structure. This allows storing EXIF metadata
+    within the PNG file. The '_1' suffix usually denotes the specific internal API used
+    to copy the buffer.
+  params:
+    png_ptr: Pointer to the png_struct.
+    info_ptr: Pointer to the png_info structure.
+    num_exif: The size of the EXIF data in bytes.
+    exif: Pointer to the byte buffer containing the EXIF data.
+  Returns:
+    None (void).
+  example_invariants:
+    - After calling, the info_ptr->valid flag includes PNG_INFO_eXIf.
+    - The library makes a copy of the data; the user can free the passed 'exif' buffer immediately after the call.
+    - The EXIF data must begin with the standard Exif header structure (usually "II" or "MM").
+  examples:
+    - (png_set_eXIf_1(png_ptr, info_ptr, length, buffer), png_get_valid(png_ptr, info_ptr, PNG_INFO_eXIf) != 0)
+    - (buffer != NULL) ? (png_set_eXIf_1(png_ptr, info_ptr, len, buffer), 1) : 0
+
+png_set_expand_gray_1_2_4_to_8:
+  description: >
+    Configures the read transformation to expand grayscale images with bit depths
+    of 1, 2, or 4 bits into full 8-bit depth.
+  params:
+    png_ptr: Pointer to the png_struct.
+  Returns:
+    None (void).
+  example_invariants:
+    - This function is deprecated in modern libpng versions in favor of png_set_expand(), but still functions for backward compatibility.
+    - It is only effective for grayscale color types.
+    - After setting this, a 1-bit image (black/white) will be read as an 8-bit buffer (0/255).
+  examples:
+    - (png_set_expand_gray_1_2_4_to_8(png_ptr), 1)
+    - (is_legacy_code) ? (png_set_expand_gray_1_2_4_to_8(png_ptr), 1) : (png_set_expand(png_ptr), 1)
+
+png_set_filler:
+  description: >
+    Sets a transformation to add a filler byte (filler channel) to the image data during reading
+    or writing. Commonly used to expand RGB to RGBA (adding 0xFF alpha) or to align data.
+  params:
+    png_ptr: Pointer to the png_struct.
+    filler: The value of the filler byte (0 to 255).
+    flags: Specifies where to add the filler (PNG_FILLER_BEFORE or PNG_FILLER_AFTER).
+  Returns:
+    None (void).
+  example_invariants:
+    - This transforms 3-byte RGB pixels into 4-byte pixels (RGBX or XRGB) in the row buffer.
+    - Using PNG_FILLER_AFTER creates a layout compatible with RGBA buffers (assuming filler is treated as alpha).
+    - It does not calculate real alpha transparency; it just inserts a constant value.
+  examples:
+    - (png_set_filler(png_ptr, 0xFF, PNG_FILLER_AFTER), 1)
+    - (need_argb) ? (png_set_filler(png_ptr, 0xFF, PNG_FILLER_BEFORE), 1) : 1
+
+
+png_set_filter:
+  description: >
+    Restricts the set of row filters that the library is allowed to use when writing a PNG.
+    This allows the application to enforce specific filtering strategies (e.g., using only 'None' for speed).
+  params:
+    png_ptr: Pointer to the png_struct.
+    method: The filter method (usually 0).
+    filters: A bitmask of filters to allow (e.g., PNG_FILTER_NONE | PNG_FILTER_SUB).
+  Returns:
+    None (void).
+  example_invariants:
+    - This function only affects write operations; it has no effect when reading.
+    - If 'filters' is set to PNG_NO_FILTERS, the library will likely default to using no filtering (just raw bytes).
+    - The library will choose the best filter for each row from the allowed set defined here.
+  examples:
+    - (png_set_filter(png_ptr, 0, PNG_FILTER_NONE | PNG_FILTER_SUB), 1)
+    - (png_set_filter(png_ptr, 0, PNG_ALL_FILTERS), 1)
+
+png_set_filter_heuristics:
+  description: >
+    Sets the heuristic method and associated costs used by libpng to select the best
+    filter for a row during writing. This is an advanced function for tuning compression.
+  params:
+    png_ptr: Pointer to the png_struct.
+    heuristic_method: The selection algorithm (e.g., PNG_FILTER_HEURISTIC_DEFAULT).
+    num_weights: The size of the cost arrays.
+    filter_costs: Array of relative costs for each filter type (can be NULL).
+    filter_weights: Array of weights for historical context (can be NULL).
+  Returns:
+    None (void).
+  example_invariants:
+    - If filter_costs is NULL, default costs are used.
+    - Providing custom weights alters the decision-making process for filter selection, potentially improving compression for specific image types.
+    - This function is generally used only by advanced encoders; standard users rely on defaults.
+  examples:
+    - (png_set_filter_heuristics(png_ptr, PNG_FILTER_HEURISTIC_DEFAULT, 1, costs, NULL), 1)
+    - (png_set_filter_heuristics(png_ptr, PNG_FILTER_HEURISTIC_UNWEIGHTED, 0, NULL, NULL), 1)
+
+png_set_gAMA_fixed:
+  description: >
+    Sets the image gamma value in the png_info structure using a fixed-point integer.
+    This value will be written to the gAMA chunk. The scaling factor is 100,000 (e.g., 100000 = 1.0).
+  params:
+    png_ptr: Pointer to the png_struct.
+    info_ptr: Pointer to the png_info structure.
+    int_gamma: The gamma value in fixed point (e.g., 45455 for 0.45455).
+  Returns:
+    None (void).
+  example_invariants:
+    - After calling, the PNG_INFO_gAMA flag is set in info_ptr->valid.
+    - The value passed is 100,000 times the actual gamma float value.
+    - This function avoids floating-point math issues on embedded systems.
+  examples:
+    - (png_set_gAMA_fixed(png_ptr, info_ptr, 45455), png_get_valid(png_ptr, info_ptr, PNG_INFO_gAMA) != 0)
+    - (int_gamma > 0) ? (png_set_gAMA_fixed(png_ptr, info_ptr, int_gamma), 1) : 0
+
+png_set_gamma_fixed:
+  description: >
+    Configures the gamma correction transform using fixed-point values.
+    This adjusts the pixel values during reading/writing to match the output device's gamma.
+  params:
+    png_ptr: Pointer to the png_struct.
+    screen_gamma: The gamma of the display system (fixed point).
+    override_file_gamma: The gamma of the file (fixed point), or PNG_DEFAULT_sRGB if unknown.
+  Returns:
+    None (void).
+  example_invariants:
+    - This sets up a transformation; actual pixel modification happens during png_read_image/png_write_image.
+    - Unlike png_set_gAMA_fixed (which sets metadata), this function modifies how pixel data is processed.
+    - A screen_gamma of 220000 corresponds to standard PC monitors (2.2).
+  examples:
+    - (png_set_gamma_fixed(png_ptr, 220000, 45455), 1)
+    - (png_set_gamma_fixed(png_ptr, PNG_FP_1, PNG_FP_1), 1)
+
+png_set_keep_unknown_chunks:
+  description: >
+    Tells libpng how to handle chunks that are not natively supported by the library
+    or the application. It allows preserving metadata (like private chunks) through a read-write cycle.
+  params:
+    png_ptr: Pointer to the png_struct.
+    keep: Strategy (e.g., PNG_HANDLE_CHUNK_ALWAYS, PNG_HANDLE_CHUNK_IF_SAFE).
+    chunk_list: A byte array of chunk names to apply this rule to (can be NULL for "all").
+    num_chunks: The number of chunks in the list.
+  Returns:
+    None (void).
+  example_invariants:
+    - If keep is PNG_HANDLE_CHUNK_ALWAYS, unknown chunks are stored in the info_ptr instead of being discarded.
+    - If num_chunks is 0, the setting applies to all unknown chunks (default behavior).
+    - This is essential for PNG editors that must not delete auxiliary data they don't understand.
+  examples:
+    - (png_set_keep_unknown_chunks(png_ptr, PNG_HANDLE_CHUNK_ALWAYS, NULL, 0), 1)
+    - (png_set_keep_unknown_chunks(png_ptr, PNG_HANDLE_CHUNK_NEVER, (png_const_bytep)"tIME", 1), 1)
+
+
+png_set_read_fn:
+  description: >
+    Sets a custom read function for the png_struct. This replaces the default
+    file-based I/O with a user-defined mechanism (e.g., reading from memory or a network socket).
+  params:
+    png_ptr: Pointer to the png_struct.
+    io_ptr: A user-defined pointer to the I/O source (passed to the read function).
+    read_data_fn: The callback function to read data.
+  Returns:
+    None (void).
+  example_invariants:
+    - After calling this, the io_ptr stored in the struct matches the one provided.
+    - If read_data_fn is NULL, the library might revert to default behavior or error out depending on version (but usually requires a valid fn).
+    - This overrides any previous I/O initialization (like png_init_io).
+  examples:
+    - (png_set_read_fn(png_ptr, my_io_context, my_read_callback), png_get_io_ptr(png_ptr) == my_io_context)
+    - (read_fn != NULL) ? (png_set_read_fn(png_ptr, NULL, read_fn), 1) : 0
+
+png_set_read_user_chunk_fn:
+  description: >
+    Registers a callback function to handle unknown or specific chunks during reading.
+    This allows the application to process private or auxiliary chunks that libpng ignores by default.
+  params:
+    png_ptr: Pointer to the png_struct.
+    user_chunk_ptr: A user-defined pointer passed to the callback.
+    read_user_chunk_fn: The callback function.
+  Returns:
+    None (void).
+  example_invariants:
+    - The user_chunk_ptr provided here is retrievable via png_get_user_chunk_ptr().
+    - The callback allows the user to decide whether an unknown chunk is critical or safe-to-copy.
+    - Setting the function to NULL disables the user chunk handler.
+  examples:
+    - (png_set_read_user_chunk_fn(png_ptr, my_ptr, my_handler), png_get_user_chunk_ptr(png_ptr) == my_ptr)
+    - (png_set_read_user_chunk_fn(png_ptr, NULL, NULL), png_get_user_chunk_ptr(png_ptr) == NULL)
+
+png_set_read_user_transform_fn:
+  description: >
+    Sets a user-defined callback to be called after the standard libpng transformations
+    (like scale, gamma) but before the row is written to the user buffer.
+    Useful for custom format conversions.
+  params:
+    png_ptr: Pointer to the png_struct.
+    read_user_transform_fn: The callback function.
+  Returns:
+    None (void).
+  example_invariants:
+    - The function pointer must be valid (non-NULL) to have an effect.
+    - This function executes exactly once per row during png_read_image.
+    - png_ptr must be initialized for reading.
+  examples:
+    - (transform_fn != NULL) ? (png_set_read_user_transform_fn(png_ptr, transform_fn), 1) : 0
+    - (png_set_read_user_transform_fn(png_ptr, NULL), 1)
+
+png_set_rows:
+  description: >
+    Manually assigns a set of row pointers to the info_struct.
+    This is typically used when the application has allocated its own pixel buffer
+    and wants libpng to write directly into it (or read from it).
+  params:
+    png_ptr: Pointer to the png_struct.
+    info_ptr: Pointer to the png_info structure.
+    row_pointers: An array of pointers, where each points to the start of a row.
+  Returns:
+    None (void).
+  example_invariants:
+    - After calling this, png_get_rows() returns exactly the pointer passed as row_pointers.
+    - The caller retains ownership of the row_pointers array and the data it points to.
+    - If row_pointers is NULL, it effectively clears the row data reference in the info_struct.
+  examples:
+    - (png_set_rows(png_ptr, info_ptr, my_rows), png_get_rows(png_ptr, info_ptr) == my_rows)
+    - (png_set_rows(png_ptr, info_ptr, NULL), png_get_rows(png_ptr, info_ptr) == NULL)
+
+png_set_sig_bytes:
+  description: >
+    Informs the library how many bytes of the PNG signature have already been read
+    from the beginning of the stream. This prevents libpng from trying to read
+    the magic bytes again, which would fail if the stream pointer has moved.
+  params:
+    png_ptr: Pointer to the png_struct.
+    num_bytes: The number of bytes already checked (0 to 8).
+  Returns:
+    None (void).
+  example_invariants:
+    - num_bytes must be less than or equal to 8 (the size of the PNG signature).
+    - If num_bytes > 8, the behavior is undefined or may cause read errors.
+    - This is typically used in conjunction with png_sig_cmp() before creating the read struct.
+  examples:
+    - (num_bytes <= 8) ? (png_set_sig_bytes(png_ptr, num_bytes), 1) : 0
+    - (png_set_sig_bytes(png_ptr, 8), 1)
+
+
+png_set_read_fn:
+  description: >
+    Sets a custom read callback function. This overrides the default stdio-based
+    reading mechanism, allowing the application to read PNG data from memory,
+    sockets, or other custom sources.
+  params:
+    png_ptr: Pointer to the png_struct.
+    io_ptr: A user-defined pointer to the IO source (passed to the read callback).
+    read_data_fn: The function pointer to the custom read callback.
+  Returns:
+    None (void).
+  example_invariants:
+    - After calling this function, png_get_io_ptr() must return the specific io_ptr passed here.
+    - If read_data_fn is NULL, the behavior depends on implementation (typically resets or errors), but the io_ptr is still updated.
+    - This function sets the internal state such that subsequent png_read_* calls invoke the custom callback.
+  examples:
+    - (png_set_read_fn(png_ptr, my_io_ctx, my_read_fn), png_get_io_ptr(png_ptr) == my_io_ctx)
+    - (io_ptr != NULL) ? (png_set_read_fn(png_ptr, io_ptr, fn), 1) : 0
+
+png_set_read_status_fn:
+  description: >
+    Sets a callback function that is called at the beginning of every row decoding.
+    This is primarily used to update user-interface progress bars or status indicators.
+  params:
+    png_ptr: Pointer to the png_struct.
+    read_row_fn: The callback function (void (*)(png_structp, png_uint_32, int)).
+  Returns:
+    None (void).
+  example_invariants:
+    - Passing NULL as the function pointer effectively disables the row status callback.
+    - This function does not alter the data reading logic, only the notification side-effect.
+    - The callback set here will be invoked repeatedly during png_read_image.
+  examples:
+    - (png_set_read_status_fn(png_ptr, NULL), 1)
+    - (callback_fn ? (png_set_read_status_fn(png_ptr, callback_fn), 1) : 0)
+
+png_set_read_user_chunk_fn:
+  description: >
+    Registers a callback to handle proprietary or unknown chunks found in the PNG stream.
+    This allows the application to capture metadata that libpng would otherwise discard or ignore.
+  params:
+    png_ptr: Pointer to the png_struct.
+    user_chunk_ptr: A user-defined void pointer for context.
+    read_user_chunk_fn: The callback function to process the chunk data.
+  Returns:
+    None (void).
+  example_invariants:
+    - The user_chunk_ptr provided is stored and can be retrieved later via png_get_user_chunk_ptr().
+    - Calling this with NULL arguments disables user chunk handling.
+    - The user_chunk_ptr is separate from the standard io_ptr.
+  examples:
+    - (png_set_read_user_chunk_fn(png_ptr, my_ptr, my_fn), png_get_user_chunk_ptr(png_ptr) == my_ptr)
+    - (png_set_read_user_chunk_fn(png_ptr, NULL, NULL), png_get_user_chunk_ptr(png_ptr) == NULL)
+
+png_set_rows:
+  description: >
+    Assigns an array of row pointers to the info structure. This tells libpng where to
+    store pixels (during read) or where to find pixels (during write) if high-level
+    image functions are used.
+  params:
+    png_ptr: Pointer to the png_struct.
+    info_ptr: Pointer to the png_info structure.
+    row_pointers: An array of pointers (png_bytepp), one for each row of the image.
+  Returns:
+    None (void).
+  example_invariants:
+    - Immediately after this call, png_get_rows() returns the exact pointer passed as row_pointers.
+    - libpng does not copy the array of pointers; it stores the reference. Therefore, the row_pointers array must remain valid.
+    - If row_pointers is NULL, the internal reference is cleared.
+  examples:
+    - (png_set_rows(png_ptr, info_ptr, row_buf), png_get_rows(png_ptr, info_ptr) == row_buf)
+    - (png_set_rows(png_ptr, info_ptr, NULL), png_get_rows(png_ptr, info_ptr) == NULL)
+
+png_set_sPLT:
+  description: >
+    Sets the suggested palette (sPLT) chunk data in the info structure.
+    This provides a suggested reduced palette for systems with limited color support.
+  params:
+    png_ptr: Pointer to the png_struct.
+    info_ptr: Pointer to the png_info structure.
+    entries: Pointer to an array of png_sPLT_entry structures.
+    num_entries: The number of sPLT entries to set.
+  Returns:
+    None (void).
+  example_invariants:
+    - Upon successful execution, the info_ptr->valid flag will contain PNG_INFO_sPLT.
+    - If num_entries is non-zero, the library allocates memory to store the palette entries.
+    - If entries is NULL or num_entries is 0, the function may invalidate existing sPLT data or do nothing (implementation dependent, but conceptually invalid inputs).
+  examples:
+    - (png_set_sPLT(png_ptr, info_ptr, entries, 5), png_get_valid(png_ptr, info_ptr, PNG_INFO_sPLT) != 0)
+    - (entries != NULL) ? (png_set_sPLT(png_ptr, info_ptr, entries, 1), 1) : 0
+
+png_set_sRGB_gAMA_and_cHRM:
+  description: >
+    Sets the sRGB chunk with a specific rendering intent. Crucially, this function also
+    automatically populates the gAMA (gamma 0.45455) and cHRM (chromaticity) chunks
+    in the info structure to ensure consistency with the sRGB standard.
+  params:
+    png_ptr: Pointer to the png_struct.
+    info_ptr: Pointer to the png_info structure.
+    srgb_intent: The rendering intent (e.g., PNG_sRGB_INTENT_PERCEPTUAL).
+  Returns:
+    None (void).
+  example_invariants:
+    - Upon return, the info_ptr will have valid flags set for PNG_INFO_sRGB, PNG_INFO_gAMA, and PNG_INFO_cHRM.
+    - This ensures that if a decoder ignores sRGB, it still has valid gamma and chromaticity values to fall back on.
+    - The gAMA chunk is explicitly set to 45455 (1/2.2) and cHRM to sRGB primaries.
+  examples:
+    - (png_set_sRGB_gAMA_and_cHRM(png_ptr, info_ptr, PNG_sRGB_INTENT_PERCEPTUAL), png_get_valid(png_ptr, info_ptr, PNG_INFO_cHRM) != 0)
+    - (png_set_sRGB_gAMA_and_cHRM(png_ptr, info_ptr, 0), png_get_valid(png_ptr, info_ptr, PNG_INFO_gAMA) != 0)
+
+png_set_swap:
+  description: >
+    Configures a read or write transformation to swap the byte-order of 16-bit pixels.
+    This converts between Big-Endian (PNG standard) and Little-Endian (most Intel/AMD CPUs).
+  params:
+    png_ptr: Pointer to the png_struct.
+  Returns:
+    None (void).
+  example_invariants:
+    - This transformation only affects images with a bit depth of 16.
+    - It modifies the internal state of png_ptr; the actual byte swapping happens during the row read/write process.
+    - If the bit depth is less than 16, this setting is ignored harmlessly.
+  examples:
+    - (png_set_swap(png_ptr), 1)
+    - (bit_depth == 16) ? (png_set_swap(png_ptr), 1) : 1
+
+png_set_text_compression_method:
+  description: >
+    Sets the compression method used for compressed text chunks (zTXt, iTXt).
+    Currently, the PNG specification only defines method 0 (deflate/inflate).
+  params:
+    png_ptr: Pointer to the png_struct.
+    method: The compression method (must be PNG_TEXT_COMPRESSION_zTXt or equivalent).
+  Returns:
+    None (void).
+  example_invariants:
+    - If the method is not supported (anything other than 0), the function may default to 0 or ignore the request.
+    - This affects how subsequent text chunks are written to the file.
+  examples:
+    - (png_set_text_compression_method(png_ptr, PNG_TEXT_COMPRESSION_zTXt), 1)
+    - (png_set_text_compression_method(png_ptr, 0), 1)
+
+png_set_text_compression_window_bits:
+  description: >
+    Sets the size of the sliding window used by zlib when compressing text chunks.
+    Adjusting this can optimize memory usage versus compression ratio for text data.
+  params:
+    png_ptr: Pointer to the png_struct.
+    window_bits: The base-2 logarithm of the window size (8 to 15).
+  Returns:
+    None (void).
+  example_invariants:
+    - The window_bits value must be between 8 and 15 inclusive; values outside this range are treated as errors or clamped.
+    - A smaller window uses less memory but may result in worse compression for long text strings.
+    - This setting is specific to text compression and does not affect the main image data compression.
+  examples:
+    - (window_bits >= 8 && window_bits <= 15) ? (png_set_text_compression_window_bits(png_ptr, window_bits), 1) : 0
+    - (png_set_text_compression_window_bits(png_ptr, 15), 1)
+
+png_set_user_limits:
+  description: >
+    Sets the maximum allowed width and height for an image that libpng will attempt to read.
+    This overrides the default limits (typically 1 million pixels) to prevent DoS attacks or excessive memory allocation.
+  params:
+    png_ptr: Pointer to the png_struct.
+    user_width_max: The maximum width in pixels.
+    user_height_max: The maximum height in pixels.
+  Returns:
+    None (void).
+  example_invariants:
+    - After calling this, png_get_user_width_max() and png_get_user_height_max() will return the set values.
+    - If a PNG file header specifies dimensions larger than these limits, png_read_info() will fail.
+    - Setting a limit of 0 typically means "unlimited" (or falls back to the maximum integer value).
+  examples:
+    - (png_set_user_limits(png_ptr, 2048, 2048), png_get_user_height_max(png_ptr) == 2048)
+    - (png_set_user_limits(png_ptr, 500, 500), png_get_user_width_max(png_ptr) == 500)
+
+png_set_write_fn:
+  description: >
+    Sets custom callback functions for writing PNG data and flushing the output stream.
+    This replaces the default file-based writing mechanism with user-defined behavior
+    (e.g., writing to a memory buffer).
+  params:
+    png_ptr: Pointer to the png_struct.
+    io_ptr: User-defined pointer to the I/O destination (passed to callbacks).
+    write_data_fn: Callback function for writing data.
+    output_flush_fn: Callback function for flushing output (can be NULL).
+  Returns:
+    None (void).
+  example_invariants:
+    - After execution, png_get_io_ptr(png_ptr) returns the io_ptr passed to this function.
+    - If write_data_fn is NULL, the library is placed in a state where writing is impossible (though the function may not crash immediately).
+    - Providing a flush function is optional; if NULL, no explicit flush is performed by libpng.
+  examples:
+    - (png_set_write_fn(png_ptr, my_ctx, my_writer, my_flusher), png_get_io_ptr(png_ptr) == my_ctx)
+    - (write_fn != NULL) ? (png_set_write_fn(png_ptr, ctx, write_fn, NULL), 1) : 0
+
+png_set_write_status_fn:
+  description: >
+    Sets a callback function that is invoked at the beginning of writing each row.
+    This is useful for implementing progress bars during write operations.
+  params:
+    png_ptr: Pointer to the png_struct.
+    write_row_fn: The callback function (void (*)(png_structp, png_uint_32, int)).
+  Returns:
+    None (void).
+  example_invariants:
+    - Setting the callback to NULL disables status updates.
+    - This function does not affect the content of the generated PNG file.
+    - The callback receives the row number, allowing the application to track percentage completion.
+  examples:
+    - (png_set_write_status_fn(png_ptr, status_callback), 1)
+    - (png_set_write_status_fn(png_ptr, NULL), 1)
+
+png_warning:
+  description: >
+    Emits a non-fatal warning message. It invokes the user-defined warning handler
+    (if set) or writes to stderr, then returns control to the calling function.
+  params:
+    png_ptr: Pointer to the png_struct.
+    message: The warning message string.
+  Returns:
+    None (void).
+  example_invariants:
+    - Unlike png_error, png_warning always returns to the caller (does not abort).
+    - The message string passed must be a valid C-string.
+    - If png_set_error_fn was used, the registered warning callback determines the output behavior.
+  examples:
+    - (png_warning(png_ptr, "Suspicious chunk encountered"), 1)
+    - (msg != NULL) ? (png_warning(png_ptr, msg), 1) : 0
+
+png_write_chunk:
+  description: >
+    Writes a complete PNG chunk to the output stream. This includes the 4-byte length,
+    4-byte chunk type (name), the data payload, and the calculated 4-byte CRC.
+  params:
+    png_ptr: Pointer to the png_struct.
+    chunk_name: A 4-byte array/string defining the chunk type (e.g., "tEXt").
+    data: Pointer to the chunk data payload.
+    length: The size of the data payload in bytes.
+  Returns:
+    None (void).
+  example_invariants:
+    - The CRC checksum is automatically calculated over the chunk name and data.
+    - If length is 0, only the length field, chunk name, and CRC (of the name) are written.
+    - This function assumes the write callback (or stdio) is set up and ready.
+  examples:
+    - (png_write_chunk(png_ptr, (png_const_bytep)"tEXt", text_data, len), 1)
+    - (len == 0) ? (png_write_chunk(png_ptr, name_buf, NULL, 0), 1) : 0
+
+png_write_chunk_data:
+  description: >
+    Writes raw data to the current chunk stream. This is a lower-level function
+    typically used to write the data payload in parts, updating the running CRC.
+  params:
+    png_ptr: Pointer to the png_struct.
+    data: Pointer to the data buffer.
+    length: The number of bytes to write.
+  Returns:
+    None (void).
+  example_invariants:
+    - This function must be called inside the context of an open chunk (after header, before end).
+    - It updates the internal CRC variable of the png_struct with the new data.
+    - Calling this with length 0 is a safe no-op.
+  examples:
+    - (png_write_chunk_data(png_ptr, buffer, 1024), 1)
+    - (data != NULL) ? (png_write_chunk_data(png_ptr, data, len), 1) : 0
+
+png_write_chunk_end:
+  description: >
+    Finalizes the writing of a manually constructed PNG chunk. It calculates and
+    writes the 4-byte CRC (Cyclic Redundancy Check) checksum based on the chunk
+    name and data written so far.
+  params:
+    png_ptr: Pointer to the png_struct.
+  Returns:
+    None (void).
+  example_invariants:
+    - This function must be called immediately after the chunk data has been written.
+    - It resets the internal CRC accumulator, preparing the struct for the next chunk.
+    - Failure to call this after starting a chunk results in a corrupted PNG stream.
+  examples:
+    - (png_write_chunk_end(png_ptr), 1)
+    - (data_written ? (png_write_chunk_end(png_ptr), 1) : 0)
+
+png_write_chunk_start:
+  description: >
+    Begins writing a new PNG chunk. It writes the 4-byte length field and the
+    4-byte chunk name (type) to the output stream, and initializes the CRC calculation.
+  params:
+    png_ptr: Pointer to the png_struct.
+    chunk_name: The 4-character name of the chunk (e.g., "tEXt").
+    length: The total length of the chunk data payload (excluding name and CRC).
+  Returns:
+    None (void).
+  example_invariants:
+    - The length parameter matches the number of bytes that will be written via subsequent png_write_chunk_data calls.
+    - The chunk_name must be a valid 4-byte string; otherwise, the resulting PNG is invalid.
+    - This function triggers the start of CRC calculation using the chunk_name bytes.
+  examples:
+    - (png_write_chunk_start(png_ptr, (png_const_bytep)"tEXt", 100), 1)
+    - (length > 0) ? (png_write_chunk_start(png_ptr, name, length), 1) : 0
+
+png_write_image:
+  description: >
+    Writes the entire image data (all rows) to the output stream. It handles
+    multiple passes automatically if the image is interlaced.
+  params:
+    png_ptr: Pointer to the png_struct.
+    image: Array of pointers to the pixel data for each row.
+  Returns:
+    None (void).
+  example_invariants:
+    - The image parameter must be a valid array of pointers with a size matching the image height.
+    - Calls to this function are valid only after the IHDR and PLTE (if applicable) have been written.
+    - If the image is interlaced, this function iterates through all 7 passes.
+  examples:
+    - (image != NULL) ? (png_write_image(png_ptr, image), 1) : 0
+    - (png_write_image(png_ptr, row_pointers), 1)
+
+png_write_status_ptr:
+  description: >
+    A typedef for the callback function used to report write progress (status).
+    The user implements a function matching this signature and registers it via png_set_write_status_fn.
+  params:
+    png_ptr: The png_struct being used for writing.
+    row: The current row number being processed.
+    pass: The current interlace pass number.
+  Returns:
+    None (void).
+  example_invariants:
+    - A valid function of this type must not modify the pixel data, only observe progress.
+    - The 'row' parameter increments sequentially (within a pass).
+    - This pointer type is compatible with the argument expected by png_set_write_status_fn.
+  examples:
+    - (sizeof(png_write_status_ptr) == sizeof(void*))
+    - (my_status_fn != NULL) ? 1 : 0

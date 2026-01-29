@@ -1,0 +1,1844 @@
+cmsAllocNamedColorList:
+	description: >
+		Allocates and initializes a named color list container for storing spot colors or palettes.
+	params:
+		n: Maximum number of named colors the list can hold.
+		nChannels: Number of device channels per color.
+		prefix: Optional prefix string for color names (can be NULL).
+		suffix: Optional suffix string for color names (can be NULL).
+	Returns:
+		Valid Pointer: On success.
+		NULL: If allocation fails or parameters are invalid.
+	example_invariants:
+		- n must be greater than 0.
+		- nChannels must be greater than 0.
+		- The returned list must be freed with cmsFreeNamedColorList.
+	examples:
+		- cmsAllocNamedColorList(8, 3, NULL, NULL) != NULL
+		- cmsAllocNamedColorList(0, 3, NULL, NULL) == NULL
+
+cmsBuildGamma:
+	description: >
+		Builds a tone curve representing a simple power-law (gamma) function.
+	params:
+		ContextID: Optional context identifier (can be NULL or 0 for default).
+		Gamma: Gamma value (must be > 0).
+	Returns:
+		Valid Pointer: On success.
+		NULL: If allocation fails or Gamma is invalid.
+	example_invariants:
+		- Gamma must be greater than 0.
+		- The returned tone curve must be freed with cmsFreeToneCurve.
+		- The curve is monotonic increasing for Gamma > 0.
+	examples:
+		- cmsBuildGamma(NULL, 2.2) != NULL
+		- cmsBuildGamma(NULL, 0.0) == NULL
+
+cmsBuildParametricToneCurve:
+	description: >
+		Builds a tone curve from a parametric curve type and associated parameters。
+	params:
+		ContextID: Optional context identifier (can be NULL or 0 for default).
+		Type: Parametric curve type identifier (e.g., 1..5).
+		Params: Pointer to parameters array for the specified Type.
+	Returns:
+		Valid Pointer: On success.
+		NULL: If allocation fails or parameters are invalid.
+	example_invariants:
+		- Params must match the required parameter count for Type.
+		- The returned tone curve must be freed with cmsFreeToneCurve.
+		- The curve is defined for input in [0, 1].
+	examples:
+		- cmsBuildParametricToneCurve(NULL, 1, params) != NULL
+		- cmsBuildParametricToneCurve(NULL, 1, NULL) == NULL
+
+cmsBuildTabulatedToneCurve16:
+	description: >
+		Builds a tone curve from a 16-bit lookup table.
+	params:
+		ContextID: Optional context identifier (can be NULL or 0 for default).
+		nEntries: Number of entries in the table.
+		Table: Pointer to 16-bit table values.
+	Returns:
+		Valid Pointer: On success.
+		NULL: If allocation fails or parameters are invalid.
+	example_invariants:
+		- nEntries must be greater than 1.
+		- Table must point to at least nEntries values.
+		- The returned tone curve must be freed with cmsFreeToneCurve.
+	examples:
+		- cmsBuildTabulatedToneCurve16(NULL, 256, table) != NULL
+		- cmsBuildTabulatedToneCurve16(NULL, 1, table) == NULL
+
+cmsCloseIOhandler:
+	description: >
+		Closes and frees an I/O handler previously opened by Little CMS.
+	params:
+		io: IO handler handle to close.
+	Returns:
+		1: On success.
+		0: If io is NULL or closing fails.
+	example_invariants:
+		- It is safe to call with NULL.
+		- After closing, the handler must not be used.
+	examples:
+		- cmsCloseIOhandler(io) == 1
+		- cmsCloseIOhandler(NULL) == 0
+
+cmsCloseProfile:
+	description: >
+		Closes an ICC profile handle and frees associated resources.
+	params:
+		hProfile: Profile handle to close.
+	Returns:
+		1: On success.
+		0: If hProfile is NULL or closing fails.
+	example_invariants:
+		- It is safe to call with NULL.
+		- After closing, the handle must not be used.
+	examples:
+		- cmsCloseProfile(hProfile) == 1
+		- cmsCloseProfile(NULL) == 0
+
+cmsColorSpaceSignature:
+	description: >
+		Type representing an ICC color space signature (four-character code).
+	example_invariants:
+		- The value encodes a four-byte ICC signature.
+		- It is typically used to identify profile color spaces and PCS.
+	examples:
+		- (sizeof(cmsColorSpaceSignature) == 4) || (sizeof(cmsColorSpaceSignature) == 8)
+		- (cmsColorSpaceSignature)0
+
+cmsCreateBCHSWabstractProfile:
+	description: >
+		Creates an abstract profile that applies Brightness/Contrast/Hue/Saturation/WhitePoint adjustments.
+	params:
+		bchsw: Pointer to adjustment parameters (cmsBCHSW) defining the transform.
+	Returns:
+		Valid Pointer: On success.
+		NULL: If allocation fails or parameters are invalid.
+	example_invariants:
+		- The returned profile must be closed with cmsCloseProfile.
+		- The profile is device-independent (abstract class).
+		- bchsw must not be NULL.
+	examples:
+		- cmsCreateBCHSWabstractProfile(&bchsw) != NULL
+		- cmsCreateBCHSWabstractProfile(NULL) == NULL
+
+cmsCreateBCHSWabstractProfileTHR:
+	description: >
+		Thread-aware variant that creates a BCHSW abstract profile using a given context.
+	params:
+		ContextID: Optional context identifier (can be NULL or 0 for default).
+		bchsw: Pointer to adjustment parameters (cmsBCHSW).
+	Returns:
+		Valid Pointer: On success.
+		NULL: If allocation fails or parameters are invalid.
+	example_invariants:
+		- The returned profile must be closed with cmsCloseProfile.
+		- ContextID controls memory and plugin behavior.
+		- bchsw must not be NULL.
+	examples:
+		- cmsCreateBCHSWabstractProfileTHR(NULL, &bchsw) != NULL
+		- cmsCreateBCHSWabstractProfileTHR(NULL, NULL) == NULL
+
+cmsCreateContext:
+	description: >
+		Creates a new Little CMS context for thread-safe configuration and plugin isolation.
+	params:
+		Plugin: Optional plugin bundle to attach (can be NULL).
+		UserData: User pointer stored in the context (can be NULL).
+	Returns:
+		Valid Pointer: On success.
+		NULL: If allocation fails.
+	example_invariants:
+		- The returned context must be freed with cmsDeleteContext.
+		- Passing NULL for Plugin creates a default context.
+		- UserData is retrievable via cmsGetContextUserData if used.
+	examples:
+		- cmsCreateContext(NULL, NULL) != NULL
+		- cmsCreateContext(NULL, user_ptr) != NULL
+
+cmsCreateInkLimitingDeviceLinkTHR:
+	description: >
+		Creates a device-link profile that limits total ink for a given color space.
+	params:
+		ContextID: Optional context identifier (can be NULL or 0 for default).
+		ColorSpace: Input/output color space signature (e.g., cmsSigCmykData).
+		Limit: Ink limit in percentage (0..400 for CMYK).
+	Returns:
+		Valid Pointer: On success.
+		NULL: If allocation fails or parameters are invalid.
+	example_invariants:
+		- Limit must be greater than 0.
+		- The returned profile must be closed with cmsCloseProfile.
+		- ColorSpace must be an ink-based space (typically CMYK).
+	examples:
+		- cmsCreateInkLimitingDeviceLinkTHR(NULL, cmsSigCmykData, 300.0) != NULL
+		- cmsCreateInkLimitingDeviceLinkTHR(NULL, cmsSigCmykData, 0.0) == NULL
+
+cmsCreateLab2ProfileTHR:
+	description: >
+		Creates a version 2 Lab profile using a specified white point and context.
+	params:
+		ContextID: Optional context identifier (can be NULL or 0 for default).
+		WhitePoint: Pointer to white point (cmsCIExyY). If NULL, D50 is used.
+	Returns:
+		Valid Pointer: On success.
+		NULL: If allocation fails.
+	example_invariants:
+		- The returned profile must be closed with cmsCloseProfile.
+		- If WhitePoint is NULL, the profile uses D50.
+		- The profile is Lab v2.
+	examples:
+		- cmsCreateLab2ProfileTHR(NULL, NULL) != NULL
+		- cmsCreateLab2ProfileTHR(NULL, &wp) != NULL
+
+cmsCreateLab4Profile:
+	description: >
+		Creates a version 4 Lab profile using a specified white point.
+	params:
+		WhitePoint: Pointer to white point (cmsCIExyY). If NULL, D50 is used.
+	Returns:
+		Valid Pointer: On success.
+		NULL: If allocation fails.
+	example_invariants:
+		- The returned profile must be closed with cmsCloseProfile.
+		- If WhitePoint is NULL, the profile uses D50.
+		- The profile is Lab v4.
+	examples:
+		- cmsCreateLab4Profile(NULL) != NULL
+		- cmsCreateLab4Profile(&wp) != NULL
+
+cmsCreateLab4ProfileTHR:
+	description: >
+		Thread-aware variant that creates a version 4 Lab profile with a specified context.
+	params:
+		ContextID: Optional context identifier (can be NULL or 0 for default).
+		WhitePoint: Pointer to white point (cmsCIExyY). If NULL, D50 is used.
+	Returns:
+		Valid Pointer: On success.
+		NULL: If allocation fails.
+	example_invariants:
+		- The returned profile must be closed with cmsCloseProfile.
+		- If WhitePoint is NULL, the profile uses D50.
+		- The profile is Lab v4.
+	examples:
+		- cmsCreateLab4ProfileTHR(NULL, NULL) != NULL
+		- cmsCreateLab4ProfileTHR(NULL, &wp) != NULL
+
+cmsCreateMultiprofileTransformTHR:
+	description: >
+		Creates a transform from multiple input profiles using a specified context.
+	params:
+		ContextID: Optional context identifier (can be NULL or 0 for default).
+		nProfiles: Number of profiles in the array.
+		Profiles: Array of profile handles (cmsHPROFILE*).
+		InputFormat: Input pixel format specifier.
+		OutputFormat: Output pixel format specifier.
+		Intent: Rendering intent.
+		Flags: Transform flags controlling optimization and behavior.
+	Returns:
+		Valid Pointer: On success.
+		NULL: If allocation fails or parameters are invalid.
+	example_invariants:
+		- nProfiles must be >= 1.
+		- Profiles must contain valid profile handles.
+		- The returned transform must be freed with cmsDeleteTransform.
+	examples:
+		- cmsCreateMultiprofileTransformTHR(NULL, 2, profiles, inFmt, outFmt, intent, 0) != NULL
+		- cmsCreateMultiprofileTransformTHR(NULL, 0, profiles, inFmt, outFmt, intent, 0) == NULL
+
+cmsCreateNULLProfile:
+	description: >
+		Creates a null (identity) ICC profile.
+	params: {}
+	Returns:
+		Valid Pointer: On success.
+		NULL: If allocation fails.
+	example_invariants:
+		- The returned profile must be closed with cmsCloseProfile.
+		- The profile performs an identity transform.
+	examples:
+		- cmsCreateNULLProfile() != NULL
+		- cmsCreateNULLProfile() == NULL || cmsCreateNULLProfile() != NULL
+
+cmsCreateNULLProfileTHR:
+	description: >
+		Thread-aware variant that creates a null (identity) ICC profile using a context.
+	params:
+		ContextID: Optional context identifier (can be NULL or 0 for default).
+	Returns:
+		Valid Pointer: On success.
+		NULL: If allocation fails.
+	example_invariants:
+		- The returned profile must be closed with cmsCloseProfile.
+		- The profile performs an identity transform.
+	examples:
+		- cmsCreateNULLProfileTHR(NULL) != NULL
+		- cmsCreateNULLProfileTHR(NULL) == NULL || cmsCreateNULLProfileTHR(NULL) != NULL
+
+cmsCreateProfilePlaceholder:
+	description: >
+		Creates an empty profile placeholder that can be filled by the caller.
+	params:
+		ContextID: Optional context identifier (can be NULL or 0 for default).
+	Returns:
+		Valid Pointer: On success.
+		NULL: If allocation fails.
+	example_invariants:
+		- The returned profile must be closed with cmsCloseProfile.
+		- The profile contains no tags until populated.
+	examples:
+		- cmsCreateProfilePlaceholder(NULL) != NULL
+		- cmsCreateProfilePlaceholder(NULL) == NULL || cmsCreateProfilePlaceholder(NULL) != NULL
+
+cmsCreateTransformTHR:
+	description: >
+		Creates a color transform between two profiles using a specified context.
+	params:
+		ContextID: Optional context identifier (can be NULL or 0 for default).
+		InputProfile: Source profile handle.
+		InputFormat: Input pixel format specifier.
+		OutputProfile: Destination profile handle.
+		OutputFormat: Output pixel format specifier.
+		Intent: Rendering intent.
+		Flags: Transform flags controlling behavior.
+	Returns:
+		Valid Pointer: On success.
+		NULL: If allocation fails or parameters are invalid.
+	example_invariants:
+		- InputProfile and OutputProfile must be valid.
+		- The returned transform must be freed with cmsDeleteTransform.
+		- Formats must match the profile color spaces.
+	examples:
+		- cmsCreateTransformTHR(NULL, inProf, inFmt, outProf, outFmt, intent, 0) != NULL
+		- cmsCreateTransformTHR(NULL, NULL, inFmt, outProf, outFmt, intent, 0) == NULL
+
+cmsCreateXYZProfile:
+	description: >
+		Creates a standard XYZ profile (v2) with D50 white point.
+	params: {}
+	Returns:
+		Valid Pointer: On success.
+		NULL: If allocation fails.
+	example_invariants:
+		- The returned profile must be closed with cmsCloseProfile.
+		- The profile color space is XYZ.
+	examples:
+		- cmsCreateXYZProfile() != NULL
+		- cmsCreateXYZProfile() == NULL || cmsCreateXYZProfile() != NULL
+
+cmsCreateXYZProfileTHR:
+	description: >
+		Thread-aware variant that creates a standard XYZ profile using a context.
+	params:
+		ContextID: Optional context identifier (can be NULL or 0 for default).
+	Returns:
+		Valid Pointer: On success.
+		NULL: If allocation fails.
+	example_invariants:
+		- The returned profile must be closed with cmsCloseProfile.
+		- The profile color space is XYZ.
+	examples:
+		- cmsCreateXYZProfileTHR(NULL) != NULL
+		- cmsCreateXYZProfileTHR(NULL) == NULL || cmsCreateXYZProfileTHR(NULL) != NULL
+
+cmsCreate_sRGBProfile:
+	description: >
+		Creates a standard sRGB profile (v2).
+	params: {}
+	Returns:
+		Valid Pointer: On success.
+		NULL: If allocation fails.
+	example_invariants:
+		- The returned profile must be closed with cmsCloseProfile.
+		- The profile color space is RGB with sRGB primaries.
+	examples:
+		- cmsCreate_sRGBProfile() != NULL
+		- cmsCreate_sRGBProfile() == NULL || cmsCreate_sRGBProfile() != NULL
+
+cmsCreate_sRGBProfileTHR:
+	description: >
+		Thread-aware variant that creates a standard sRGB profile using a context.
+	params:
+		ContextID: Optional context identifier (can be NULL or 0 for default).
+	Returns:
+		Valid Pointer: On success.
+		NULL: If allocation fails.
+	example_invariants:
+		- The returned profile must be closed with cmsCloseProfile.
+		- The profile color space is RGB with sRGB primaries.
+	examples:
+		- cmsCreate_sRGBProfileTHR(NULL) != NULL
+		- cmsCreate_sRGBProfileTHR(NULL) == NULL || cmsCreate_sRGBProfileTHR(NULL) != NULL
+
+cmsD50_XYZ:
+	description: >
+		Returns the D50 white point in XYZ coordinates.
+	params: {}
+	Returns: cmsCIEXYZ constant value.
+	example_invariants:
+		- The value is constant and does not change at runtime.
+		- The X, Y, Z values are normalized for the D50 white point.
+	examples:
+		- cmsD50_XYZ.X > 0
+		- cmsD50_XYZ.Y > 0
+
+cmsD50_xyY:
+	description: >
+		Returns the D50 white point in xyY coordinates.
+	params: {}
+	Returns: cmsCIExyY constant value.
+	example_invariants:
+		- The value is constant and does not change at runtime.
+		- Y is normalized to 1.0 for the D50 white point.
+	examples:
+		- cmsD50_xyY.Y > 0
+		- cmsD50_xyY.x > 0
+
+cmsDeleteContext:
+	description: >
+		Destroys a Little CMS context and frees its resources.
+	params:
+		ContextID: Context handle to delete.
+	Returns: None (void).
+	example_invariants:
+		- It is safe to call with NULL.
+		- The context must not be used after deletion.
+	examples:
+		- (cmsDeleteContext(ctx), 1)
+		- (cmsDeleteContext(NULL), 1)
+
+cmsDeleteTransform:
+	description: >
+		Deletes a color transform and releases associated resources.
+	params:
+		hTransform: Transform handle to delete.
+	Returns: None (void).
+	example_invariants:
+		- It is safe to call with NULL.
+		- The transform must not be used after deletion.
+	examples:
+		- (cmsDeleteTransform(xform), 1)
+		- (cmsDeleteTransform(NULL), 1)
+
+cmsDetectBlackPoint:
+	description: >
+		Estimates the black point of a profile for a given rendering intent.
+	params:
+		BlackPoint: Output pointer to cmsCIEXYZ for the black point.
+		hProfile: Profile handle.
+		Intent: Rendering intent.
+		Flags: Control flags for the estimation.
+	Returns:
+		1: On success.
+		0: On failure.
+	example_invariants:
+		- BlackPoint must be non-NULL.
+		- hProfile must be a valid profile handle.
+	examples:
+		- cmsDetectBlackPoint(&bp, hProfile, intent, 0) == 1
+		- cmsDetectBlackPoint(NULL, hProfile, intent, 0) == 0
+
+cmsDetectDestinationBlackPoint:
+	description: >
+		Estimates the black point of the destination profile in a transform pipeline.
+	params:
+		BlackPoint: Output pointer to cmsCIEXYZ for the black point.
+		hProfile: Destination profile handle.
+		Intent: Rendering intent.
+		Flags: Control flags for the estimation.
+	Returns:
+		1: On success.
+		0: On failure.
+	example_invariants:
+		- BlackPoint must be non-NULL.
+		- hProfile must be a valid profile handle.
+	examples:
+		- cmsDetectDestinationBlackPoint(&bp, hProfile, intent, 0) == 1
+		- cmsDetectDestinationBlackPoint(NULL, hProfile, intent, 0) == 0
+
+cmsDupContext:
+	description: >
+		Creates a duplicate of an existing context.
+	params:
+		ContextID: Context handle to duplicate.
+		UserData: User pointer stored in the new context (can be NULL).
+	Returns:
+		Valid Pointer: On success.
+		NULL: If allocation fails.
+	example_invariants:
+		- The new context must be deleted with cmsDeleteContext.
+		- If ContextID is NULL, the default context is duplicated.
+	examples:
+		- cmsDupContext(ctx, NULL) != NULL
+		- cmsDupContext(NULL, NULL) != NULL
+
+cmsEstimateGamma:
+	description: >
+		Estimates the gamma of a tone curve.
+	params:
+		Curve: Tone curve handle.
+		Precision: Sampling precision for estimation.
+	Returns: Estimated gamma value (double), or 0 on failure.
+	example_invariants:
+		- Curve must be a valid tone curve.
+		- Precision should be > 0 for meaningful results.
+	examples:
+		- cmsEstimateGamma(curve, 0) >= 0
+		- cmsEstimateGamma(curve, 256) > 0
+
+cmsEvalToneCurveFloat:
+	description: >
+		Evaluates a tone curve for a floating-point input in [0, 1].
+	params:
+		Curve: Tone curve handle.
+		Value: Input value (0..1).
+	Returns: Output value (float).
+	example_invariants:
+		- Curve must be a valid tone curve.
+		- Value should be within [0, 1].
+		- Output is typically within [0, 1] for well-formed curves.
+	examples:
+		- cmsEvalToneCurveFloat(curve, 0.5f) >= 0.0f
+		- cmsEvalToneCurveFloat(curve, 0.0f) >= 0.0f
+
+cmsFloat2XYZEncoded:
+	description: >
+		Encodes a floating-point XYZ value into the 16-bit ICC-encoded XYZ format.
+	params:
+		Value: Floating-point XYZ component.
+	Returns: 16-bit encoded value (cmsUInt16Number).
+	example_invariants:
+		- Input should be non-negative for valid XYZ.
+		- The result is suitable for ICC tag encoding.
+	examples:
+		- cmsFloat2XYZEncoded(1.0) > 0
+		- cmsFloat2XYZEncoded(0.0) == 0
+
+cmsFormatterForPCSOfProfile:
+	description: >
+		Returns the formatter (pixel type) used for the PCS of a given profile.
+	params:
+		hProfile: Profile handle.
+	Returns: Formatter type (cmsUInt32Number) describing the PCS format.
+	example_invariants:
+		- hProfile must be a valid profile handle.
+		- The returned formatter matches the profile PCS (Lab or XYZ).
+	examples:
+		- cmsFormatterForPCSOfProfile(hProfile) != 0
+		- cmsFormatterForPCSOfProfile(hProfile) == cmsFormatterForPCSOfProfile(hProfile)
+
+cmsFreeNamedColorList:
+	description: >
+		Frees a named color list previously allocated by cmsAllocNamedColorList.
+	params:
+		ncl: Named color list handle.
+	Returns: None (void).
+	example_invariants:
+		- It is safe to call with NULL.
+		- The list must not be used after freeing.
+	examples:
+		- (cmsFreeNamedColorList(ncl), 1)
+		- (cmsFreeNamedColorList(NULL), 1)
+
+cmsFreeToneCurveTriple:
+	description: >
+		Frees an array of three tone curves (typically for RGB) and the array container.
+	params:
+		Curve: Array of three tone curve pointers.
+	Returns: None (void).
+	example_invariants:
+		- It is safe to pass NULL.
+		- Each tone curve in the array is freed.
+	examples:
+		- (cmsFreeToneCurveTriple(curves), 1)
+		- (cmsFreeToneCurveTriple(NULL), 1)
+
+cmsGBDAlloc:
+	description: >
+		Allocates a GBD (gamut boundary descriptor) structure for black point detection.
+	params:
+		hProfile: Profile handle.
+		Intent: Rendering intent.
+		Flags: Control flags for the descriptor.
+	Returns:
+		Valid Pointer: On success.
+		NULL: If allocation fails or parameters are invalid.
+	example_invariants:
+		- hProfile must be a valid profile handle.
+		- The returned descriptor must be freed with cmsGBDFree.
+	examples:
+		- cmsGBDAlloc(hProfile, intent, 0) != NULL
+		- cmsGBDAlloc(NULL, intent, 0) == NULL
+
+cmsGetDeviceClass:
+	description: >
+		Retrieves the device class signature of a profile (e.g., input, display, output).
+	params:
+		hProfile: Profile handle.
+	Returns: cmsProfileClassSignature value.
+	example_invariants:
+		- hProfile must be a valid profile handle.
+		- The return value identifies the profile class.
+	examples:
+		- cmsGetDeviceClass(hProfile) != 0
+		- cmsGetDeviceClass(hProfile) == cmsGetDeviceClass(hProfile)
+
+cmsGetEncodedCMMversion:
+	description: >
+		Returns the encoded CMM (Color Management Module) version from a profile.
+	params:
+		hProfile: Profile handle.
+	Returns: Encoded version as cmsUInt32Number.
+	example_invariants:
+		- hProfile must be a valid profile handle.
+		- The value follows ICC encoding rules.
+	examples:
+		- cmsGetEncodedCMMversion(hProfile) != 0
+		- cmsGetEncodedCMMversion(hProfile) == cmsGetEncodedCMMversion(hProfile)
+
+cmsGetEncodedICCversion:
+	description: >
+		Returns the encoded ICC profile version number.
+	params:
+		hProfile: Profile handle.
+	Returns: Encoded ICC version as cmsUInt32Number.
+	example_invariants:
+		- hProfile must be a valid profile handle.
+		- The value follows ICC encoding rules.
+	examples:
+		- cmsGetEncodedICCversion(hProfile) != 0
+		- cmsGetEncodedICCversion(hProfile) == cmsGetEncodedICCversion(hProfile)
+
+cmsGetHeaderAttributes:
+	description: >
+		Retrieves the ICC header attributes of a profile.
+	params:
+		hProfile: Profile handle.
+	Returns: 64-bit attribute flags value.
+	example_invariants:
+		- hProfile must be a valid profile handle.
+		- The returned value is a bitmask defined by the ICC spec.
+	examples:
+		- cmsGetHeaderAttributes(hProfile) != 0
+		- cmsGetHeaderAttributes(hProfile) == cmsGetHeaderAttributes(hProfile)
+
+cmsGetHeaderCreationDateTime:
+	description: >
+		Retrieves the creation date/time from the ICC profile header.
+	params:
+		hProfile: Profile handle.
+		Dest: Output pointer to cmsDateTimeNumber.
+	Returns:
+		1: On success.
+		0: On failure.
+	example_invariants:
+		- Dest must be non-NULL.
+		- hProfile must be a valid profile handle.
+	examples:
+		- cmsGetHeaderCreationDateTime(hProfile, &dt) == 1
+		- cmsGetHeaderCreationDateTime(NULL, &dt) == 0
+
+cmsGetHeaderCreator:
+	description: >
+		Retrieves the profile creator signature from the ICC header.
+	params:
+		hProfile: Profile handle.
+	Returns: Creator signature as cmsUInt32Number.
+	example_invariants:
+		- hProfile must be a valid profile handle.
+		- The returned value is a 4-byte signature.
+	examples:
+		- cmsGetHeaderCreator(hProfile) != 0
+		- cmsGetHeaderCreator(hProfile) == cmsGetHeaderCreator(hProfile)
+
+cmsGetHeaderFlags:
+	description: >
+		Retrieves the ICC header flags field.
+	params:
+		hProfile: Profile handle.
+	Returns: 32-bit flags value.
+	example_invariants:
+		- hProfile must be a valid profile handle.
+		- The returned value is a bitmask defined by the ICC spec.
+	examples:
+		- cmsGetHeaderFlags(hProfile) >= 0
+		- cmsGetHeaderFlags(hProfile) == cmsGetHeaderFlags(hProfile)
+
+cmsGetHeaderManufacturer:
+	description: >
+		Retrieves the manufacturer signature from the ICC profile header.
+	params:
+		hProfile: Profile handle.
+	Returns: Manufacturer signature as cmsUInt32Number.
+	example_invariants:
+		- hProfile must be a valid profile handle.
+		- The returned value is a 4-byte signature.
+	examples:
+		- cmsGetHeaderManufacturer(hProfile) != 0
+		- cmsGetHeaderManufacturer(hProfile) == cmsGetHeaderManufacturer(hProfile)
+
+cmsGetHeaderModel:
+	description: >
+		Retrieves the model signature from the ICC profile header.
+	params:
+		hProfile: Profile handle.
+	Returns: Model signature as cmsUInt32Number.
+	example_invariants:
+		- hProfile must be a valid profile handle.
+		- The returned value is a 4-byte signature.
+	examples:
+		- cmsGetHeaderModel(hProfile) != 0
+		- cmsGetHeaderModel(hProfile) == cmsGetHeaderModel(hProfile)
+
+cmsGetHeaderProfileID:
+	description: >
+		Retrieves the profile ID (MD5) from the ICC header.
+	params:
+		hProfile: Profile handle.
+		ProfileID: Output pointer to cmsProfileID (16 bytes).
+	Returns:
+		1: On success.
+		0: On failure.
+	example_invariants:
+		- ProfileID must be non-NULL.
+		- hProfile must be a valid profile handle.
+	examples:
+		- cmsGetHeaderProfileID(hProfile, &pid) == 1
+		- cmsGetHeaderProfileID(NULL, &pid) == 0
+
+cmsGetHeaderRenderingIntent:
+	description: >
+		Retrieves the rendering intent from the ICC profile header.
+	params:
+		hProfile: Profile handle.
+	Returns: Rendering intent value.
+	example_invariants:
+		- hProfile must be a valid profile handle.
+		- The return value is one of the ICC intent constants.
+	examples:
+		- cmsGetHeaderRenderingIntent(hProfile) >= 0
+		- cmsGetHeaderRenderingIntent(hProfile) == cmsGetHeaderRenderingIntent(hProfile)
+
+cmsGetNamedColorList:
+	description: >
+		Retrieves the named color list from a profile if present.
+	params:
+		hProfile: Profile handle.
+	Returns: Pointer to cmsNAMEDCOLORLIST or NULL if not present.
+	example_invariants:
+		- hProfile must be a valid profile handle.
+		- The returned list is owned by the profile and must not be freed.
+	examples:
+		- cmsGetNamedColorList(hProfile) != NULL
+		- cmsGetNamedColorList(hProfile) == NULL
+
+cmsGetPCS:
+	description: >
+		Retrieves the profile connection space (PCS) signature of a profile.
+	params:
+		hProfile: Profile handle.
+	Returns: cmsColorSpaceSignature identifying the PCS (Lab or XYZ).
+	example_invariants:
+		- hProfile must be a valid profile handle.
+		- The PCS is typically Lab or XYZ for ICC profiles.
+	examples:
+		- cmsGetPCS(hProfile) != 0
+		- cmsGetPCS(hProfile) == cmsGetPCS(hProfile)
+
+cmsGetPipelineContextID:
+	description: >
+		Returns the context identifier associated with a pipeline.
+	params:
+		Pipeline: Pipeline handle.
+	Returns: Context identifier (cmsContext) or NULL.
+	example_invariants:
+		- Pipeline must be a valid pipeline handle.
+		- The returned context matches the one used to create the pipeline.
+	examples:
+		- cmsGetPipelineContextID(pipeline) != NULL
+		- cmsGetPipelineContextID(pipeline) == cmsGetPipelineContextID(pipeline)
+
+cmsGetProfileContextID:
+	description: >
+		Returns the context identifier associated with a profile.
+	params:
+		hProfile: Profile handle.
+	Returns: Context identifier (cmsContext) or NULL.
+	example_invariants:
+		- hProfile must be a valid profile handle.
+		- The returned context matches the one used to create the profile.
+	examples:
+		- cmsGetProfileContextID(hProfile) != NULL
+		- cmsGetProfileContextID(hProfile) == cmsGetProfileContextID(hProfile)
+
+cmsGetProfileInfoASCII:
+	description: >
+		Retrieves ASCII text information from a profile (e.g., description, manufacturer).
+	params:
+		hProfile: Profile handle.
+		Info: Information type selector.
+		LanguageCode: Two-character language code (e.g., "en").
+		CountryCode: Two-character country code (e.g., "US").
+		Buffer: Output buffer for text.
+		BufferSize: Size of output buffer in bytes.
+	Returns: Number of bytes written (including NUL) or 0 on failure.
+	example_invariants:
+		- Buffer must be non-NULL and BufferSize > 0.
+		- hProfile must be a valid profile handle.
+		- The string is NUL-terminated on success.
+	examples:
+		- cmsGetProfileInfoASCII(hProfile, cmsInfoDescription, "en", "US", buf, sizeof(buf)) > 0
+		- cmsGetProfileInfoASCII(NULL, cmsInfoDescription, "en", "US", buf, sizeof(buf)) == 0
+
+cmsGetProfileVersion:
+	description: >
+		Returns the ICC profile version as a floating-point value.
+	params:
+		hProfile: Profile handle.
+	Returns: Profile version (e.g., 4.2).
+	example_invariants:
+		- hProfile must be a valid profile handle.
+		- The value is derived from the profile header.
+	examples:
+		- cmsGetProfileVersion(hProfile) > 0
+		- cmsGetProfileVersion(hProfile) == cmsGetProfileVersion(hProfile)
+
+cmsGetSupportedIntents:
+	description: >
+		Retrieves the rendering intents supported by a profile.
+	params:
+		hProfile: Profile handle.
+		nMax: Maximum number of intents to return.
+		Intent: Output array for intents.
+		Flags: Output array for intent-specific flags.
+	Returns: Number of intents returned.
+	example_invariants:
+		- hProfile must be a valid profile handle.
+		- Intent and Flags must have room for nMax entries.
+	examples:
+		- cmsGetSupportedIntents(hProfile, 4, intents, flags) >= 0
+		- cmsGetSupportedIntents(NULL, 4, intents, flags) == 0
+
+cmsGetSupportedIntentsTHR:
+	description: >
+		Thread-aware variant that retrieves supported intents using a specified context.
+	params:
+		ContextID: Optional context identifier (can be NULL or 0 for default).
+		hProfile: Profile handle.
+		nMax: Maximum number of intents to return.
+		Intent: Output array for intents.
+		Flags: Output array for intent-specific flags.
+	Returns: Number of intents returned.
+	example_invariants:
+		- hProfile must be a valid profile handle.
+		- Intent and Flags must have room for nMax entries.
+	examples:
+		- cmsGetSupportedIntentsTHR(NULL, hProfile, 4, intents, flags) >= 0
+		- cmsGetSupportedIntentsTHR(NULL, NULL, 4, intents, flags) == 0
+
+cmsGetTagCount:
+	description: >
+		Returns the number of tags present in a profile.
+	params:
+		hProfile: Profile handle.
+	Returns: Tag count.
+	example_invariants:
+		- hProfile must be a valid profile handle.
+		- The count is non-negative.
+	examples:
+		- cmsGetTagCount(hProfile) >= 0
+		- cmsGetTagCount(hProfile) == cmsGetTagCount(hProfile)
+
+cmsGetTagSignature:
+	description: >
+		Returns the tag signature at the specified index.
+	params:
+		hProfile: Profile handle.
+		n: Tag index.
+	Returns: Tag signature (cmsTagSignature).
+	example_invariants:
+		- n must be < cmsGetTagCount(hProfile).
+		- hProfile must be a valid profile handle.
+	examples:
+		- cmsGetTagSignature(hProfile, 0) != 0
+		- cmsGetTagSignature(hProfile, cmsGetTagCount(hProfile)) == 0
+
+cmsGetTransformInputFormat:
+	description: >
+		Returns the input pixel format associated with a transform.
+	params:
+		hTransform: Transform handle.
+	Returns: Input format specifier (cmsUInt32Number).
+	example_invariants:
+		- hTransform must be a valid transform handle.
+		- The returned format matches the one used to create the transform.
+	examples:
+		- cmsGetTransformInputFormat(xform) != 0
+		- cmsGetTransformInputFormat(xform) == cmsGetTransformInputFormat(xform)
+
+cmsGetTransformOutputFormat:
+	description: >
+		Returns the output pixel format associated with a transform.
+	params:
+		hTransform: Transform handle.
+	Returns: Output format specifier (cmsUInt32Number).
+	example_invariants:
+		- hTransform must be a valid transform handle.
+		- The returned format matches the one used to create the transform.
+	examples:
+		- cmsGetTransformOutputFormat(xform) != 0
+		- cmsGetTransformOutputFormat(xform) == cmsGetTransformOutputFormat(xform)
+
+cmsHANDLE:
+	description: >
+		Generic opaque handle type used by Little CMS.
+	example_invariants:
+		- It is an opaque pointer type.
+		- Specific handle types (e.g., cmsHPROFILE) are compatible with cmsHANDLE.
+	examples:
+		- (sizeof(cmsHANDLE) == sizeof(void*))
+		- (cmsHANDLE)0
+
+cmsHPROFILE:
+	description: >
+		Opaque handle type representing an ICC profile.
+	example_invariants:
+		- Profiles are created/opened by cmsCreate*/cmsOpen* functions.
+		- Profiles must be closed with cmsCloseProfile.
+	examples:
+		- (sizeof(cmsHPROFILE) == sizeof(void*))
+		- (cmsHPROFILE)0
+
+cmsHTRANSFORM:
+	description: >
+		Opaque handle type representing a color transform.
+	example_invariants:
+		- Transforms are created by cmsCreateTransform* functions.
+		- Transforms must be deleted with cmsDeleteTransform.
+	examples:
+		- (sizeof(cmsHTRANSFORM) == sizeof(void*))
+		- (cmsHTRANSFORM)0
+
+cmsIOHANDLER:
+	description: >
+		Opaque handle type for Little CMS I/O handlers.
+	example_invariants:
+		- I/O handlers are created by cmsOpenIOhandler* functions.
+		- Handlers must be closed with cmsCloseIOhandler.
+	examples:
+		- (sizeof(cmsIOHANDLER) == sizeof(void*))
+		- (cmsIOHANDLER)0
+
+cmsIT8Alloc:
+	description: >
+		Allocates an IT8 handle for CGATS/IT8 data parsing and generation.
+	params: {}
+	Returns:
+		Valid Pointer: On success.
+		NULL: If allocation fails.
+	example_invariants:
+		- The handle must be freed with cmsIT8Free.
+		- The handle starts empty.
+	examples:
+		- cmsIT8Alloc() != NULL
+		- cmsIT8Alloc() == NULL || cmsIT8Alloc() != NULL
+
+cmsIT8EnumDataFormat:
+	description: >
+		Enumerates the data format fields of an IT8 handle by index.
+	params:
+		hIT8: IT8 handle.
+		n: Index of the data format entry.
+	Returns: UTF-8 string pointer or NULL if out of range.
+	example_invariants:
+		- hIT8 must be a valid IT8 handle.
+		- n must be within the number of data format entries.
+	examples:
+		- cmsIT8EnumDataFormat(hIT8, 0) != NULL
+		- cmsIT8EnumDataFormat(hIT8, 9999) == NULL
+
+cmsIT8EnumProperties:
+	description: >
+		Enumerates the properties of an IT8 handle by index.
+	params:
+		hIT8: IT8 handle.
+		n: Index of the property.
+	Returns: UTF-8 string pointer or NULL if out of range.
+	example_invariants:
+		- hIT8 must be a valid IT8 handle.
+		- n must be within the number of properties.
+	examples:
+		- cmsIT8EnumProperties(hIT8, 0) != NULL
+		- cmsIT8EnumProperties(hIT8, 9999) == NULL
+
+cmsIT8Free:
+	description: >
+		Frees an IT8 handle and associated resources.
+	params:
+		hIT8: IT8 handle to free.
+	Returns: None (void).
+	example_invariants:
+		- It is safe to call with NULL.
+		- The handle must not be used after freeing.
+	examples:
+		- (cmsIT8Free(hIT8), 1)
+		- (cmsIT8Free(NULL), 1)
+
+cmsIT8GetPatchName:
+	description: >
+		Retrieves the patch name for a given patch number from an IT8 handle.
+	params:
+		hIT8: IT8 handle.
+		nPatch: Patch index.
+	Returns: UTF-8 string pointer or NULL if not found.
+	example_invariants:
+		- hIT8 must be a valid IT8 handle.
+		- nPatch must be within the patch count.
+	examples:
+		- cmsIT8GetPatchName(hIT8, 0) != NULL
+		- cmsIT8GetPatchName(hIT8, 9999) == NULL
+
+cmsIT8SetPropertyStr:
+	description: >
+		Sets a string property in an IT8 handle.
+	params:
+		hIT8: IT8 handle.
+		Key: Property name.
+		Value: Property value.
+	Returns:
+		1: On success.
+		0: On failure.
+	example_invariants:
+		- hIT8 must be a valid IT8 handle.
+		- Key and Value must be non-NULL strings.
+	examples:
+		- cmsIT8SetPropertyStr(hIT8, "ORIGINATOR", "LCMS") == 1
+		- cmsIT8SetPropertyStr(NULL, "KEY", "VAL") == 0
+
+cmsIsCLUT:
+	description: >
+		Checks whether a pipeline stage is a CLUT (color lookup table) stage.
+	params:
+		Stage: Pipeline stage handle.
+	Returns: Non-zero if CLUT, 0 otherwise.
+	example_invariants:
+		- Stage must be a valid stage handle.
+		- The result depends on the stage type.
+	examples:
+		- cmsIsCLUT(stage) == 0 || cmsIsCLUT(stage) != 0
+		- cmsIsCLUT(NULL) == 0
+
+cmsIsIntentSupported:
+	description: >
+		Checks whether a profile supports a given rendering intent.
+	params:
+		hProfile: Profile handle.
+		Intent: Rendering intent value.
+		UsedDirection: Direction (input/output/proof) for the intent check.
+	Returns: Non-zero if supported, 0 otherwise.
+	example_invariants:
+		- hProfile must be a valid profile handle.
+		- Intent is one of the ICC intent constants.
+	examples:
+		- cmsIsIntentSupported(hProfile, intent, LCMS_USED_AS_INPUT) != 0
+		- cmsIsIntentSupported(NULL, intent, LCMS_USED_AS_INPUT) == 0
+
+cmsIsMatrixShaper:
+	description: >
+		Checks whether a profile is a matrix-shaper profile.
+	params:
+		hProfile: Profile handle.
+	Returns: Non-zero if matrix-shaper, 0 otherwise.
+	example_invariants:
+		- hProfile must be a valid profile handle.
+		- Matrix-shaper profiles typically are simple RGB profiles.
+	examples:
+		- cmsIsMatrixShaper(hProfile) == 0 || cmsIsMatrixShaper(hProfile) != 0
+		- cmsIsMatrixShaper(NULL) == 0
+
+cmsMD5computeID:
+	description: >
+		Computes and sets the MD5 profile ID in the profile header based on its contents.
+	params:
+		hProfile: Profile handle.
+	Returns:
+		1: On success.
+		0: On failure.
+	example_invariants:
+		- hProfile must be a valid profile handle.
+		- The profile ID is updated in the header on success.
+	examples:
+		- cmsMD5computeID(hProfile) == 1
+		- cmsMD5computeID(NULL) == 0
+
+cmsMLU:
+	description: >
+		Opaque handle type for a multi-localized Unicode (MLU) string container.
+	example_invariants:
+		- MLU objects are created by cmsMLUalloc and freed with cmsMLUfree.
+		- Used to store localized strings in profiles.
+	examples:
+		- (sizeof(cmsMLU) == sizeof(void*))
+		- (cmsMLU)0
+
+cmsMLUalloc:
+	description: >
+		Allocates a multi-localized Unicode (MLU) container.
+	params:
+		ContextID: Optional context identifier (can be NULL or 0 for default).
+		nItems: Initial number of items (can be 0).
+	Returns:
+		Valid Pointer: On success.
+		NULL: If allocation fails.
+	example_invariants:
+		- The returned MLU must be freed with cmsMLUfree.
+		- The container starts empty.
+	examples:
+		- cmsMLUalloc(NULL, 0) != NULL
+		- cmsMLUalloc(NULL, 1) != NULL
+
+cmsMLUfree:
+	description: >
+		Frees an MLU object and its contents.
+	params:
+		mlu: MLU handle to free.
+	Returns: None (void).
+	example_invariants:
+		- It is safe to call with NULL.
+		- The object must not be used after freeing.
+	examples:
+		- (cmsMLUfree(mlu), 1)
+		- (cmsMLUfree(NULL), 1)
+
+cmsMLUgetUTF8:
+	description: >
+		Retrieves a UTF-8 string from an MLU object for a given language/country.
+	params:
+		mlu: MLU handle.
+		LanguageCode: Two-character language code.
+		CountryCode: Two-character country code.
+		Buffer: Output buffer.
+		BufferSize: Size of output buffer in bytes.
+	Returns: Number of bytes written (including NUL) or 0 on failure.
+	example_invariants:
+		- Buffer must be non-NULL and BufferSize > 0.
+		- The string is NUL-terminated on success.
+	examples:
+		- cmsMLUgetUTF8(mlu, "en", "US", buf, sizeof(buf)) > 0
+		- cmsMLUgetUTF8(NULL, "en", "US", buf, sizeof(buf)) == 0
+
+cmsMLUgetWide:
+	description: >
+		Retrieves a wide-character string from an MLU object for a given language/country.
+	params:
+		mlu: MLU handle.
+		LanguageCode: Two-character language code.
+		CountryCode: Two-character country code.
+		Buffer: Output buffer for wide characters.
+		BufferSize: Size of output buffer in bytes.
+	Returns: Number of bytes written (including NUL) or 0 on failure.
+	example_invariants:
+		- Buffer must be non-NULL and BufferSize > 0.
+		- The string is NUL-terminated on success.
+	examples:
+		- cmsMLUgetWide(mlu, "en", "US", wbuf, sizeof(wbuf)) > 0
+		- cmsMLUgetWide(NULL, "en", "US", wbuf, sizeof(wbuf)) == 0
+
+cmsMLUsetASCII:
+	description: >
+		Sets an ASCII string into an MLU object for a given language/country.
+	params:
+		mlu: MLU handle.
+		LanguageCode: Two-character language code.
+		CountryCode: Two-character country code.
+		Text: NUL-terminated ASCII string.
+	Returns:
+		1: On success.
+		0: On failure.
+	example_invariants:
+		- mlu must be a valid MLU handle.
+		- Text must be non-NULL.
+	examples:
+		- cmsMLUsetASCII(mlu, "en", "US", "Profile") == 1
+		- cmsMLUsetASCII(NULL, "en", "US", "Profile") == 0
+
+cmsNAMEDCOLORLIST:
+	description: >
+		Opaque handle type for a named color list container.
+	example_invariants:
+		- Objects are created by cmsAllocNamedColorList and freed by cmsFreeNamedColorList.
+		- Used to store named colors and device values.
+	examples:
+		- (sizeof(cmsNAMEDCOLORLIST) == sizeof(void*))
+		- (cmsNAMEDCOLORLIST)0
+
+cmsNamedColorCount:
+	description: >
+		Returns the number of named colors stored in a named color list.
+	params:
+		ncl: Named color list handle.
+	Returns: Number of named colors.
+	example_invariants:
+		- ncl must be a valid named color list handle.
+		- The return value is non-negative.
+	examples:
+		- cmsNamedColorCount(ncl) >= 0
+		- cmsNamedColorCount(NULL) == 0
+
+cmsOpenIOhandlerFromNULL:
+	description: >
+		Opens a NULL I/O handler that discards all I/O operations.
+	params:
+		ContextID: Optional context identifier (can be NULL or 0 for default).
+	Returns:
+		Valid Pointer: On success.
+		NULL: If allocation fails.
+	example_invariants:
+		- The handler must be closed with cmsCloseIOhandler.
+		- It performs no actual I/O.
+	examples:
+		- cmsOpenIOhandlerFromNULL(NULL) != NULL
+		- cmsOpenIOhandlerFromNULL(NULL) == NULL || cmsOpenIOhandlerFromNULL(NULL) != NULL
+
+cmsOpenProfileFromMem:
+	description: >
+		Opens an ICC profile from a memory buffer.
+	params:
+		MemPtr: Pointer to the profile data.
+		Size: Size of the profile data in bytes.
+	Returns:
+		Valid Pointer: On success.
+		NULL: If the buffer is invalid or allocation fails.
+	example_invariants:
+		- MemPtr must point to a valid ICC profile image.
+		- The returned profile must be closed with cmsCloseProfile.
+	examples:
+		- cmsOpenProfileFromMem(buf, size) != NULL
+		- cmsOpenProfileFromMem(NULL, 0) == NULL
+
+cmsPipeline:
+	description: >
+		Opaque handle type representing a processing pipeline of stages.
+	example_invariants:
+		- Pipelines are created by cmsPipelineAlloc and freed by cmsPipelineFree.
+		- Stages can be inserted or removed to build transforms.
+	examples:
+		- (sizeof(cmsPipeline) == sizeof(void*))
+		- (cmsPipeline)0
+
+cmsPipelineAlloc:
+	description: >
+		Allocates a pipeline with a specified number of input and output channels.
+	params:
+		ContextID: Optional context identifier (can be NULL or 0 for default).
+		InputChannels: Number of input channels.
+		OutputChannels: Number of output channels.
+	Returns:
+		Valid Pointer: On success.
+		NULL: If allocation fails or parameters are invalid.
+	example_invariants:
+		- InputChannels and OutputChannels must be > 0.
+		- The pipeline must be freed with cmsPipelineFree.
+	examples:
+		- cmsPipelineAlloc(NULL, 3, 3) != NULL
+		- cmsPipelineAlloc(NULL, 0, 3) == NULL
+
+cmsPipelineEval16:
+	description: >
+		Evaluates a pipeline using 16-bit input/output data.
+	params:
+		In: Pointer to input 16-bit values.
+		Out: Pointer to output 16-bit values.
+		Pipeline: Pipeline handle.
+	Returns: None (void).
+	example_invariants:
+		- Pipeline must be a valid pipeline handle.
+		- In and Out must have enough channel entries.
+	examples:
+		- (cmsPipelineEval16(in, out, pipeline), 1)
+		- (cmsPipelineEval16(in, out, pipeline), 1)
+
+cmsPipelineEvalFloat:
+	description: >
+		Evaluates a pipeline using floating-point input/output data.
+	params:
+		In: Pointer to input float values.
+		Out: Pointer to output float values.
+		Pipeline: Pipeline handle.
+	Returns: None (void).
+	example_invariants:
+		- Pipeline must be a valid pipeline handle.
+		- In and Out must have enough channel entries.
+	examples:
+		- (cmsPipelineEvalFloat(in, out, pipeline), 1)
+		- (cmsPipelineEvalFloat(in, out, pipeline), 1)
+
+cmsPipelineFree:
+	description: >
+		Frees a pipeline and all its stages.
+	params:
+		Pipeline: Pipeline handle to free.
+	Returns: None (void).
+	example_invariants:
+		- It is safe to call with NULL.
+		- The pipeline must not be used after freeing.
+	examples:
+		- (cmsPipelineFree(pipeline), 1)
+		- (cmsPipelineFree(NULL), 1)
+
+cmsPipelineGetPtrToFirstStage:
+	description: >
+		Returns a pointer to the first stage in a pipeline.
+	params:
+		Pipeline: Pipeline handle.
+	Returns: Stage pointer or NULL if the pipeline is empty.
+	example_invariants:
+		- Pipeline must be a valid pipeline handle.
+		- The returned pointer is owned by the pipeline.
+	examples:
+		- cmsPipelineGetPtrToFirstStage(pipeline) != NULL
+		- cmsPipelineGetPtrToFirstStage(NULL) == NULL
+
+cmsPipelineGetPtrToLastStage:
+	description: >
+		Returns a pointer to the last stage in a pipeline.
+	params:
+		Pipeline: Pipeline handle.
+	Returns: Stage pointer or NULL if the pipeline is empty.
+	example_invariants:
+		- Pipeline must be a valid pipeline handle.
+		- The returned pointer is owned by the pipeline.
+	examples:
+		- cmsPipelineGetPtrToLastStage(pipeline) != NULL
+		- cmsPipelineGetPtrToLastStage(NULL) == NULL
+
+cmsPipelineInsertStage:
+	description: >
+		Inserts a stage into a pipeline at the specified location.
+	params:
+		Pipeline: Pipeline handle.
+		Location: Insertion location (cmsAT_BEGIN or cmsAT_END).
+		Stage: Stage handle to insert.
+	Returns:
+		1: On success.
+		0: On failure.
+	example_invariants:
+		- Pipeline and Stage must be valid.
+		- On success, the stage becomes owned by the pipeline.
+	examples:
+		- cmsPipelineInsertStage(pipeline, cmsAT_END, stage) == 1
+		- cmsPipelineInsertStage(NULL, cmsAT_END, stage) == 0
+
+cmsPipelineOutputChannels:
+	description: >
+		Returns the number of output channels in a pipeline.
+	params:
+		Pipeline: Pipeline handle.
+	Returns: Output channel count.
+	example_invariants:
+		- Pipeline must be a valid pipeline handle.
+		- The count is non-negative.
+	examples:
+		- cmsPipelineOutputChannels(pipeline) > 0
+		- cmsPipelineOutputChannels(NULL) == 0
+
+cmsPipelineSetSaveAs8bitsFlag:
+	description: >
+		Sets whether pipeline evaluation should save values as 8-bit during optimization.
+	params:
+		Pipeline: Pipeline handle.
+		Enable: Non-zero to enable, 0 to disable.
+	Returns: None (void).
+	example_invariants:
+		- Pipeline must be a valid pipeline handle.
+		- This flag affects optimization/output precision.
+	examples:
+		- (cmsPipelineSetSaveAs8bitsFlag(pipeline, 1), 1)
+		- (cmsPipelineSetSaveAs8bitsFlag(pipeline, 0), 1)
+
+cmsPipelineUnlinkStage:
+	description: >
+		Unlinks (removes) a stage from a pipeline without deleting the stage.
+	params:
+		Pipeline: Pipeline handle.
+		Stage: Stage handle to remove.
+	Returns: Stage pointer if removed, or NULL on failure.
+	example_invariants:
+		- Pipeline and Stage must be valid.
+		- The caller becomes responsible for freeing the returned stage.
+	examples:
+		- cmsPipelineUnlinkStage(pipeline, stage) != NULL
+		- cmsPipelineUnlinkStage(NULL, stage) == NULL
+
+cmsProfileClassSignature:
+	description: >
+		Type representing an ICC profile class signature (four-character code).
+	example_invariants:
+		- The value encodes a four-byte ICC signature.
+		- Used for device class fields in profile headers.
+	examples:
+		- (sizeof(cmsProfileClassSignature) == 4) || (sizeof(cmsProfileClassSignature) == 8)
+		- (cmsProfileClassSignature)0
+
+cmsReadTag:
+	description: >
+		Reads a tag from a profile and returns a pointer to its data.
+	params:
+		hProfile: Profile handle.
+		Tag: Tag signature to read.
+	Returns: Pointer to tag data or NULL if not present.
+	example_invariants:
+		- hProfile must be a valid profile handle.
+		- The returned pointer is owned by the profile and must not be freed.
+	examples:
+		- cmsReadTag(hProfile, tag) != NULL
+		- cmsReadTag(hProfile, tag) == NULL
+
+cmsSaveProfileToFile:
+	description: >
+		Saves an ICC profile to a file on disk.
+	params:
+		hProfile: Profile handle.
+		FileName: Path to output file.
+	Returns:
+		1: On success.
+		0: On failure.
+	example_invariants:
+		- hProfile must be a valid profile handle.
+		- FileName must be a valid writable path.
+	examples:
+		- cmsSaveProfileToFile(hProfile, "out.icc") == 1
+		- cmsSaveProfileToFile(NULL, "out.icc") == 0
+
+cmsSaveProfileToIOhandler:
+	description: >
+		Saves an ICC profile using a custom I/O handler.
+	params:
+		hProfile: Profile handle.
+		io: I/O handler handle.
+	Returns:
+		1: On success.
+		0: On failure.
+	example_invariants:
+		- hProfile and io must be valid handles.
+		- The I/O handler must be opened for writing.
+	examples:
+		- cmsSaveProfileToIOhandler(hProfile, io) == 1
+		- cmsSaveProfileToIOhandler(NULL, io) == 0
+
+cmsSaveProfileToMem:
+	description: >
+		Saves an ICC profile to a memory buffer.
+	params:
+		hProfile: Profile handle.
+		MemPtr: Pointer to output buffer (can be NULL to query size).
+		BytesNeeded: "In: buffer size; Out: bytes written or required."
+	Returns:
+		1: On success.
+		0: On failure.
+	example_invariants:
+		- If MemPtr is NULL, the required size is written to BytesNeeded.
+		- The buffer must be large enough to hold the profile data.
+		- hProfile must be a valid profile handle.
+	examples:
+		- cmsSaveProfileToMem(hProfile, NULL, &size) == 1
+		- cmsSaveProfileToMem(hProfile, buf, &size) == 1
+
+cmsSetAlarmCodes:
+	description: >
+		Sets the alarm (out-of-gamut) color codes for 16-bit processing.
+	params:
+		AlarmCodes: Pointer to array of 16-bit values (one per channel).
+	Returns: None (void).
+	example_invariants:
+		- AlarmCodes must point to at least MAXCHANNELS values.
+		- The codes are used when soft proofing with alarm enabled.
+	examples:
+		- (cmsSetAlarmCodes(codes), 1)
+		- (cmsSetAlarmCodes(NULL), 1)
+
+cmsSetAlarmCodesTHR:
+	description: >
+		Thread-aware variant that sets alarm codes in a specified context.
+	params:
+		ContextID: Optional context identifier (can be NULL or 0 for default).
+		AlarmCodes: Pointer to array of 16-bit values.
+	Returns: None (void).
+	example_invariants:
+		- AlarmCodes must point to at least MAXCHANNELS values.
+		- The codes affect only the specified context.
+	examples:
+		- (cmsSetAlarmCodesTHR(NULL, codes), 1)
+		- (cmsSetAlarmCodesTHR(NULL, NULL), 1)
+
+cmsSetEncodedICCversion:
+	description: >
+		Sets the encoded ICC profile version in the profile header.
+	params:
+		hProfile: Profile handle.
+		Version: Encoded ICC version (cmsUInt32Number).
+	Returns: None (void).
+	example_invariants:
+		- hProfile must be a valid profile handle.
+		- The value follows ICC encoding rules.
+	examples:
+		- (cmsSetEncodedICCversion(hProfile, ver), 1)
+		- (cmsSetEncodedICCversion(NULL, ver), 1)
+
+cmsSetHeaderFlags:
+	description: >
+		Sets the ICC header flags field.
+	params:
+		hProfile: Profile handle.
+		Flags: 32-bit flags value.
+	Returns: None (void).
+	example_invariants:
+		- hProfile must be a valid profile handle.
+		- Flags is a bitmask defined by the ICC spec.
+	examples:
+		- (cmsSetHeaderFlags(hProfile, flags), 1)
+		- (cmsSetHeaderFlags(NULL, flags), 1)
+
+cmsSetHeaderRenderingIntent:
+	description: >
+		Sets the rendering intent in the profile header.
+	params:
+		hProfile: Profile handle.
+		Intent: Rendering intent value.
+	Returns: None (void).
+	example_invariants:
+		- hProfile must be a valid profile handle.
+		- Intent is one of the ICC intent constants.
+	examples:
+		- (cmsSetHeaderRenderingIntent(hProfile, intent), 1)
+		- (cmsSetHeaderRenderingIntent(NULL, intent), 1)
+
+cmsSetProfileVersion:
+	description: >
+		Sets the ICC profile version using a floating-point value.
+	params:
+		hProfile: Profile handle.
+		Version: Profile version (e.g., 4.2).
+	Returns: None (void).
+	example_invariants:
+		- hProfile must be a valid profile handle.
+		- The value is converted to ICC encoded version internally.
+	examples:
+		- (cmsSetProfileVersion(hProfile, 4.2), 1)
+		- (cmsSetProfileVersion(NULL, 4.2), 1)
+
+cmsStage:
+	description: >
+		Opaque handle type representing a pipeline stage.
+	example_invariants:
+		- Stages are created by cmsStageAlloc* functions and freed by cmsStageFree.
+		- Stages are linked into pipelines to build transforms.
+	examples:
+		- (sizeof(cmsStage) == sizeof(void*))
+		- (cmsStage)0
+
+cmsStageAllocCLut16bit:
+	description: >
+		Allocates a CLUT (color lookup table) stage with 16-bit entries.
+	params:
+		ContextID: Optional context identifier (can be NULL or 0 for default).
+		nGridPoints: Number of grid points per input channel.
+		InputChannels: Number of input channels.
+		OutputChannels: Number of output channels.
+		Table: Optional pointer to 16-bit table data (can be NULL to allocate empty).
+	Returns:
+		Valid Pointer: On success.
+		NULL: If allocation fails or parameters are invalid.
+	example_invariants:
+		- InputChannels and OutputChannels must be > 0.
+		- The stage must be freed with cmsStageFree.
+	examples:
+		- cmsStageAllocCLut16bit(NULL, 17, 3, 3, table) != NULL
+		- cmsStageAllocCLut16bit(NULL, 0, 3, 3, table) == NULL
+
+cmsStageAllocCLutFloat:
+	description: >
+		Allocates a CLUT stage with floating-point entries.
+	params:
+		ContextID: Optional context identifier (can be NULL or 0 for default).
+		nGridPoints: Number of grid points per input channel.
+		InputChannels: Number of input channels.
+		OutputChannels: Number of output channels.
+		Table: Optional pointer to float table data (can be NULL to allocate empty).
+	Returns:
+		Valid Pointer: On success.
+		NULL: If allocation fails or parameters are invalid.
+	example_invariants:
+		- InputChannels and OutputChannels must be > 0.
+		- The stage must be freed with cmsStageFree.
+	examples:
+		- cmsStageAllocCLutFloat(NULL, 17, 3, 3, table) != NULL
+		- cmsStageAllocCLutFloat(NULL, 0, 3, 3, table) == NULL
+
+cmsStageAllocIdentity:
+	description: >
+		Allocates an identity stage that passes values unchanged.
+	params:
+		ContextID: Optional context identifier (can be NULL or 0 for default).
+		nChannels: Number of channels.
+	Returns:
+		Valid Pointer: On success.
+		NULL: If allocation fails or parameters are invalid.
+	example_invariants:
+		- nChannels must be > 0.
+		- The stage must be freed with cmsStageFree.
+	examples:
+		- cmsStageAllocIdentity(NULL, 3) != NULL
+		- cmsStageAllocIdentity(NULL, 0) == NULL
+
+cmsStageAllocMatrix:
+	description: >
+		Allocates a matrix stage with an optional offset vector.
+	params:
+		ContextID: Optional context identifier (can be NULL or 0 for default).
+		Rows: Number of output channels.
+		Cols: Number of input channels.
+		Matrix: Pointer to matrix coefficients (Rows x Cols).
+		Offset: Optional pointer to offset vector (Rows entries).
+	Returns:
+		Valid Pointer: On success.
+		NULL: If allocation fails or parameters are invalid.
+	example_invariants:
+		- Rows and Cols must be > 0.
+		- The stage must be freed with cmsStageFree.
+	examples:
+		- cmsStageAllocMatrix(NULL, 3, 3, matrix, offset) != NULL
+		- cmsStageAllocMatrix(NULL, 0, 3, matrix, offset) == NULL
+
+cmsStageAllocToneCurves:
+	description: >
+		Allocates a tone curve stage for per-channel curves.
+	params:
+		ContextID: Optional context identifier (can be NULL or 0 for default).
+		nChannels: Number of channels.
+		Curves: Array of tone curve handles (cmsToneCurve*).
+	Returns:
+		Valid Pointer: On success.
+		NULL: If allocation fails or parameters are invalid.
+	example_invariants:
+		- nChannels must be > 0.
+		- Curves must contain valid tone curve handles.
+		- The stage must be freed with cmsStageFree.
+	examples:
+		- cmsStageAllocToneCurves(NULL, 3, curves) != NULL
+		- cmsStageAllocToneCurves(NULL, 0, curves) == NULL
+
+cmsStageData:
+	description: >
+		Returns a pointer to the internal data associated with a stage.
+	params:
+		Stage: Stage handle.
+	Returns: Pointer to stage-specific data or NULL.
+	example_invariants:
+		- Stage must be a valid stage handle.
+		- The returned pointer is owned by the stage.
+	examples:
+		- cmsStageData(stage) != NULL
+		- cmsStageData(NULL) == NULL
+
+cmsStageDup:
+	description: >
+		Duplicates a stage, creating a deep copy.
+	params:
+		Stage: Stage handle.
+	Returns:
+		Valid Pointer: On success.
+		NULL: If duplication fails.
+	example_invariants:
+		- Stage must be a valid stage handle.
+		- The duplicated stage must be freed with cmsStageFree.
+	examples:
+		- cmsStageDup(stage) != NULL
+		- cmsStageDup(NULL) == NULL
+
+cmsStageFree:
+	description: >
+		Frees a stage and associated resources.
+	params:
+		Stage: Stage handle to free.
+	Returns: None (void).
+	example_invariants:
+		- It is safe to call with NULL.
+		- The stage must not be used after freeing.
+	examples:
+		- (cmsStageFree(stage), 1)
+		- (cmsStageFree(NULL), 1)
+
+cmsStageInputChannels:
+	description: >
+		Returns the number of input channels for a stage.
+	params:
+		Stage: Stage handle.
+	Returns: Input channel count.
+	example_invariants:
+		- Stage must be a valid stage handle.
+		- The returned value is non-negative.
+	examples:
+		- cmsStageInputChannels(stage) > 0
+		- cmsStageInputChannels(NULL) == 0
+
+cmsStageLoc:
+	description: >
+		Returns the stage location or insertion position marker.
+	params:
+		Stage: Stage handle.
+	Returns: Location identifier (e.g., cmsAT_BEGIN or cmsAT_END).
+	example_invariants:
+		- Stage must be a valid stage handle.
+		- The value describes where the stage sits in a pipeline.
+	examples:
+		- cmsStageLoc(stage) != 0
+		- cmsStageLoc(NULL) == 0
+
+cmsStageNext:
+	description: >
+		Returns the next stage in the pipeline linked list.
+	params:
+		Stage: Stage handle.
+	Returns: Next stage pointer or NULL if this is the last stage.
+	example_invariants:
+		- Stage must be a valid stage handle.
+		- The returned pointer is owned by the pipeline.
+	examples:
+		- cmsStageNext(stage) != NULL || cmsStageNext(stage) == NULL
+		- cmsStageNext(NULL) == NULL
+
+cmsStageOutputChannels:
+	description: >
+		Returns the number of output channels for a stage.
+	params:
+		Stage: Stage handle.
+	Returns: Output channel count.
+	example_invariants:
+		- Stage must be a valid stage handle.
+		- The returned value is non-negative.
+	examples:
+		- cmsStageOutputChannels(stage) > 0
+		- cmsStageOutputChannels(NULL) == 0
+
+cmsStageSignature:
+	description: >
+		Returns the signature identifying the stage type.
+	params:
+		Stage: Stage handle.
+	Returns: Stage signature (cmsStageSignature).
+	example_invariants:
+		- Stage must be a valid stage handle.
+		- The signature is a 4-byte code.
+	examples:
+		- cmsStageSignature(stage) != 0
+		- cmsStageSignature(NULL) == 0
+
+cmsStageType:
+	description: >
+		Returns the stage type identifier.
+	params:
+		Stage: Stage handle.
+	Returns: Stage type (cmsStageSignature).
+	example_invariants:
+		- Stage must be a valid stage handle.
+		- The type is consistent with cmsStageSignature.
+	examples:
+		- cmsStageType(stage) != 0
+		- cmsStageType(NULL) == 0
+
+cmsTagSignature:
+	description: >
+		Type representing an ICC tag signature (four-character code).
+	example_invariants:
+		- The value encodes a four-byte ICC tag signature.
+		- Used to identify tags in profiles.
+	examples:
+		- (sizeof(cmsTagSignature) == 4) || (sizeof(cmsTagSignature) == 8)
+		- (cmsTagSignature)0
+
+cmsTempFromWhitePoint:
+	description: >
+		Computes correlated color temperature from a white point.
+	params:
+		WhitePoint: Pointer to cmsCIExyY white point.
+	Returns: Estimated temperature in Kelvin.
+	example_invariants:
+		- WhitePoint must be non-NULL.
+		- The return value is > 0 for valid white points.
+	examples:
+		- cmsTempFromWhitePoint(&wp) > 0
+		- cmsTempFromWhitePoint(NULL) == 0
+
+cmsToneCurve:
+	description: >
+		Opaque handle type representing a tone curve.
+	example_invariants:
+		- Tone curves are created by cmsBuild* functions and freed by cmsFreeToneCurve.
+		- Used for gamma and LUT-based transfer functions.
+	examples:
+		- (sizeof(cmsToneCurve) == sizeof(void*))
+		- (cmsToneCurve)0
+
+cmsTransform2DeviceLink:
+	description: >
+		Creates a device-link profile from an existing transform.
+	params:
+		hTransform: Transform handle.
+		Version: Profile version to encode (e.g., 4.2).
+		Flags: Control flags for the generated profile.
+	Returns:
+		Valid Pointer: On success.
+		NULL: On failure.
+	example_invariants:
+		- hTransform must be a valid transform handle.
+		- The returned profile must be closed with cmsCloseProfile.
+	examples:
+		- cmsTransform2DeviceLink(hTransform, 4.2, 0) != NULL
+		- cmsTransform2DeviceLink(NULL, 4.2, 0) == NULL
+
+cmsUnregisterPlugins:
+	description: >
+		Unregisters all plugins from a context (or the default context).
+	params:
+		ContextID: Optional context identifier (can be NULL or 0 for default).
+	Returns: None (void).
+	example_invariants:
+		- Safe to call multiple times.
+		- Only affects the specified context.
+	examples:
+		- (cmsUnregisterPlugins(NULL), 1)
+		- (cmsUnregisterPlugins(ctx), 1)
+
+cmsXYZ2Lab:
+	description: >
+		Converts XYZ tristimulus values to CIE Lab using a given white point.
+	params:
+		WhitePoint: Pointer to cmsCIEXYZ white point.
+		Lab: Output pointer to cmsCIELab.
+		XYZ: Input pointer to cmsCIEXYZ.
+	Returns: None (void).
+	example_invariants:
+		- WhitePoint, Lab, and XYZ must be non-NULL.
+		- Output Lab values depend on the white point.
+	examples:
+		- (cmsXYZ2Lab(&wp, &lab, &xyz), 1)
+		- (cmsXYZ2Lab(NULL, &lab, &xyz), 1)
+
+cmsxyY2XYZ:
+	description: >
+		Converts xyY color coordinates to XYZ tristimulus values.
+	params:
+		XYZ: Output pointer to cmsCIEXYZ.
+		xyY: Input pointer to cmsCIExyY.
+	Returns: None (void).
+	example_invariants:
+		- XYZ and xyY must be non-NULL.
+		- The conversion preserves luminance Y.
+	examples:
+		- (cmsxyY2XYZ(&xyz, &xyy), 1)
+		- (cmsxyY2XYZ(NULL, &xyy), 1)

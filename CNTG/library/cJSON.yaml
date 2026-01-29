@@ -1,0 +1,618 @@
+cJSON_Version:
+  description: >
+    This function Returns the version of the cJSON library as a string.
+  params: []
+  Returns:
+    The string of the version of the cJSON library.
+  example_invariants:
+    - Return value is a non-empty string.
+  example:
+    - cJSON_Version() != null
+
+cJSON_InitHooks:
+  description: >
+    Supply malloc, realloc and free functions to cJSON.
+  params:
+    hooks: A pointer to a cJSON_Hooks structure containing the custom memory functions.
+  Returns:
+    Nothing
+  example_invariants:
+    - If hook is not null, the malloc_fn and free_fn should point to valid memory functions.
+    - If hook is null, cJSON will use the default memory functions.
+    - should be called before any other cJSON function.
+    - hook will be updated after calling this function
+  example:
+    - cJSON_Hooks custom_hooks;assert(custom_hooks.malloc_fn != NULL);assert(custom_hooks.free_fn != NULL);
+    - cJSON_InitHooks(&logging_hooks);cJSON* json = cJSON_Parse("{}");// Use custom malloc function\
+
+cJSON_Parse:
+  description: >
+    Parse a JSON string and return a cJSON object.
+  params:
+    value: A pointer to the null-terminated JSON string to be parsed.
+  Returns:
+    A pointer to the root cJSON object representing the parsed JSON structure, or nullptr.
+  example_invariants:
+    - will use the custom memory functions if set via cJSON_InitHooks.
+    - will return a valid pointer to a cJSON object if the input string is valid JSON.
+    - will return nullptr if the input string is not valid JSON.
+  example:
+    - cJSON* json = cJSON_Parse("{\"key\":\"value\"}");assert(json != NULL);assert(cJSON_GetObjectItem(json, "key")->valuestring != NULL);
+    - cJSON* invalid_json = cJSON_Parse("{key:\"value\"}");assert(invalid_json == NULL);
+
+cJSON_PareWithLength:
+  description: >
+    Parse a JSON string with a specified length and return a cJSON object.
+  params:
+    value: A pointer to the JSON string to be parsed.
+    buffer_length: The length of the JSON string.
+  Returns:
+    A pointer to the root cJSON object representing the parsed JSON structure, or nullptr.
+  example_invariants:
+    - will use the custom memory functions if set via cJSON_InitHooks.
+    - will return a valid pointer to a cJSON object if the input string is valid JSON.
+    - will return nullptr if the input string is not valid JSON.
+  example:
+    - cJSON* json = cJSON_ParseWithLength(buffer, actual_json_len);assert(json != NULL);
+    -  cJSON* json = cJSON_ParseWithLength(buffer, too_short);assert(json == NULL);
+    - cJSON* json = cJSON_ParseWithLength(buffer, too_long);assert(json != NULL);
+
+cJSON_ParseWithOpts:
+  description: >
+    Parse a JSON string with options to specify length and whether to require null-termination.
+  params:
+    value: A pointer to the JSON string to be parsed.
+    return_parse_end: A pointer to a pointer that will be set to the character after the last parsed character.
+    require_null_terminated: A boolean indicating whether the input string must be null-terminated.
+  Returns:
+    A pointer to the root cJSON object representing the parsed JSON structure, or nullptr.
+  example_invariants:
+    - if return_parse_end is not null, it should point to a valid const char* address before call
+    - return_parse_end should be pointed to the character after the last parsed character after call if call is valid
+    - return_parse_end will be pointed to the character causing the parse to fail if call is invalid
+    - will return null if require_null_terminated is true and the input string is not null-terminated
+  examples:
+    - const char* stream_with_trailing_data = "{\"user\":\"admin\"} more data";const char* parse_end = NULL;cJSON* root = cJSON_ParseWithOpts(stream_with_trailing_data, &parse_end, 0); assert(root != NULL);assert(parse_end == stream_with_trailing_data + strlen("{\"user\":\"admin\"}"));
+    - const char* stream_with_trailing_data = "{\"user\":\"admin\"} more data"; cJSON* root_strict = cJSON_ParseWithOpts(stream_with_trailing_data, NULL, 1); assert(root_strict == NULL); 
+
+cJSON_ParseWithLengthOpts:
+  description: >
+    Parse a JSON string with specified length and options to specify whether to require null-termination.
+  params:
+    value: A pointer to the JSON string to be parsed.
+    buffer_length: The length of the JSON string.
+    return_parse_end: A pointer to a pointer that will be set to the character after the last parsed character.
+    require_null_terminated: A boolean indicating whether the input string must be null-terminated.
+  Returns:
+    A pointer to the root cJSON object representing the parsed JSON structure, or nullptr.
+  example_invariants:
+    - if return_parse_end is not null, it should point to a valid const char* address before call
+    - return_parse_end should point to the character after the last parsed character after call if call is valid
+    - return_parse_end will point to the character causing the parse to fail if call is invalid
+    - will return null if require_null_terminated is true and the input string is not null-terminated
+  examples:
+    - assert(data_buffer != NULL);assert(data_len > 0);cJSON* json_array = cJSON_ParseWithLengthOpts(data_buffer, data_len, &end_ptr, 0);assert(json_array != NULL);
+    - const char* parse_end = NULL; cJSON* root = cJSON_ParseWithLengthOpts(buffer, first_json_len, &parse_end, 0);  assert(parse_end == buffer + first_json_len);
+    - cJSON* broken_json = cJSON_ParseWithLengthOpts(buffer, 10, &parse_end, 0); assert(broken_json == NULL);assert(parse_end == buffer + 9);
+
+cJSON_Print:
+  description: >
+    convert a cJSON object to a formatted JSON string.
+  params:
+    item: A pointer to the cJSON object to be converted.
+  Returns:
+    A pointer to a null-terminated string containing the formatted JSON representation of the cJSON object
+  example_invariants:
+    - The pointer returned should be freed by free() or the custom free function set via cJSON_InitHooks.
+    - Will return a new allocated pointer to a c string. Original cJSON item will remain unchanged.
+    - will return NULL if fails 
+  example:
+    - cJSON* root = cJSON_CreateBool(1);char* printed_json = cJSON_Print(root); assert(printed_json == std::string("true")); 
+    - cJSON* root = cJSON_CreateBool(1); char* printed_json = cJSON_Print(root); assert(root!=NULL);
+
+cJSON_PrintUnformatted:
+  description: >
+    Convert a cJSON object to an unformatted JSON string.
+  params:
+    item: A pointer to the cJSON object to be converted.
+  Returns:
+    A pointer to a null-terminated string containing the unformatted JSON representation of the cJSON object.
+  example_invariants:
+    - The pointer returned should be freed by free() or the custom free function set via cJSON_InitHooks.
+    - Will return a new allocated pointer to a c string. Original cJSON item will remain unchanged.
+    - will return NULL if fails 
+  example:
+    - cJSON* root = cJSON_CreateBool(1);char* printed_json = cJSON_PrintUnformatted(root); assert(printed_json == std::string("true")); 
+    - cJSON* root = cJSON_CreateBool(1); char* printed_json = cJSON_PrintUnformatted(root); assert(root!=NULL);
+    - cJSON *root = cJSON_CreateObject();cJSON_AddStringToObject(root, "status", "active");char *result = cJSON_PrintUnformatted(root);assert(result != NULL && "cJSON_PrintUnformatted should not return NULL on success");assert(strcmp(result, "{\"status\":\"active\"}") == 0 && "The unformatted string content is incorrect");
+
+cJSON_PrintBuffered:
+  description: >
+    Convert a cJSON object to a JSON string with a specified buffer size and formatting option.
+  params:
+    item: A pointer to the cJSON object to be converted.
+    prebuffer: The size of the buffer to allocate before the JSON string.
+    fmt: A boolean indicating whether to format the JSON string (true) or not (false).
+  Returns:
+    A pointer to a null-terminated string containing the JSON representation of the cJSON object.
+  example_invariants:
+    - prebuffer should be a non-negative integer.
+    - The pointer returned should be freed by free() or the custom free function set via cJSON_InitHooks.
+    - Will return a new allocated pointer to a c string. Original cJSON item will remain unchanged.Formet will be determined by fmt parameter.
+    - will return NULL if fails
+  example:
+    - cJSON *root = cJSON_CreateString("This is a test string that is longer than the prebuffer."); int tiny_prebuffer = 1;har *result = cJSON_PrintBuffered(root, tiny_prebuffer, 0);   assert(strlen(result) > tiny_prebuffer && "Resulting string length should be greater than the initial guess");
+    - cJSON *root = cJSON_CreateObject();cJSON *root = cJSON_CreateObject();char *result = cJSON_PrintBuffered(root, 32, 1);const char *expected_formatted = "{\n\t\"type\":\t\"buffered\"\n}";assert(strcmp(result, expected_formatted) == 0 );
+
+cJSON_PrintPreallocated:
+  description: >
+    serialize a cJSON object into a preallocated buffer.
+  params:
+    item: A pointer to the cJSON object to be serialized.
+    buffer: A pointer to the preallocated buffer where the JSON string will be written.
+    length: The size of the preallocated buffer.
+    format: A cJSON_bool indicating the format
+  Returns:
+    A cJSON_bool indicating result
+  example_invariants:
+    - buffer should be a valid pointer to a memory block of at least 'length' bytes
+    - will return 1 if buffer write successfully
+    - will return 0 if buffer is too small or any other error occurs
+  example:
+    - cJSON *root = cJSON_CreateString("ok");char buffer[10];  cJSON_bool success = cJSON_PrintPreallocated(root, buffer, 10, 0);assert(success == 1);assert(strcmp(buffer, "\"ok\"") == 0);
+    - cJSON *root = cJSON_CreateString("this string is too long for the buffer");char small_buffer[5];memset(small_buffer, 'X', sizeof(small_buffer)); cJSON_bool failure = cJSON_PrintPreallocated(root, small_buffer, sizeof(small_buffer), 0);assert(failure == 0); assert(small_buffer[sizeof(small_buffer) - 1] == 'X');
+
+cJSON_Delete:
+  description: >
+    Delete a cJSON object and all its children, freeing the associated memory.
+  params:
+    item: A pointer to the cJSON object to be deleted.
+  Returns:
+    Nothing
+  example_invariants:
+    - item should be a valid pointer to a cJSON object or nullptr.
+    - After calling this function, the item pointer should not be used again.
+  example:
+    - cJSON* json = cJSON_Parse("{\"key\":\"value\"}"); assert(json != NULL); cJSON_Delete(json); json = NULL; // Avoid dangling pointer
+    - cJSON* null_json = NULL; cJSON_Delete(null_json); assert(1);
+
+cJSON_GetArraySize:
+  description: >
+    Get the number of items in a cJSON array.
+  params:
+    array: A pointer to the cJSON array object.
+  Returns:
+    The number of items in the array, or 0 if the input is not a valid array.
+  example_invariants:
+    - array should be a valid pointer to a cJSON object or nullptr.
+    - will return 0 if the input is not a valid array 
+    - will not modify the input array
+  example:
+    -  cJSON *arr = cJSON_Parse("[1, 2, 3]"); cJSON *obj = cJSON_Parse("{\"a\":1, \"b\":2}");int array_size = cJSON_GetArraySize(arr);int object_size = cJSON_GetArraySize(obj);assert(array_size == 3);assert(object_size == 2);
+    - cJSON *not_an_array = cJSON_CreateString("hello world"); cJSON *null_item = NULL; int size_for_string = cJSON_GetArraySize(not_an_array);int size_for_null = cJSON_GetArraySize(null_item);assert(size_for_string == 0 ); assert(size_for_null == 0 );
+
+cJSON_GetArrayItem:
+  description: >
+    Get an item from a cJSON array by its index.
+  params:
+    array: A pointer to the cJSON array object.
+    index: The index of the item to retrieve.
+  Returns:
+    A pointer to the cJSON object at the specified index, or nullptr if the index is out of bounds or the input is not a valid array.
+  example_invariants:
+    - array should be a valid pointer to a cJSON object or nullptr.
+    - index should be a non-negative integer.
+    - will return nullptr if the input is not a valid array or if the index is out of bounds
+    - will not modify the input array
+  example:
+    - cJSON *arr = cJSON_Parse("[0, 1]"); assert(arr != NULL);cJSON *item_out_of_bounds = cJSON_GetArrayItem(arr, 2);cJSON *item_out_of_bounds = cJSON_GetArrayItem(arr, 2);assert(item_out_of_bounds == NULL);assert(item_negative_index == NULL);
+    - cJSON *arr = cJSON_Parse("[100, \"hello\", true]");cJSON *item = cJSON_GetArrayItem(arr, index_to_get);assert(item != NULL);assert(cJSON_IsString(item) );assert(strcmp(item->valuestring, "hello") == 0);
+
+cJSON_GetObjectItem:
+  description: >
+    get an item from a cJSON object by its key.
+  params:
+    object: A pointer to the cJSON object.
+    string: The key of the item to retrieve.
+  Returns:
+    A pointer to the cJSON object associated with the specified key, or nullptr if the key does not exist or the input is not a valid object.
+  example_invariants:
+    - string should be a valid null-terminated string.
+    - should not delete the return object because its lifetime is determined by the parent object.
+  example:
+    - cJSON *root = cJSON_Parse("{\"Version\": 1.2}"); cJSON *item = cJSON_GetObjectItem(root, "version");assert(item != NULL ); assert(cJSON_IsNumber(item) );assert(item->valuedouble == 1.2 );
+    - cJSON *root = cJSON_Parse("{\"status\": \"ok\"}"); cJSON *item_not_found = cJSON_GetObjectItem(root, "non_existent_key");cJSON *not_an_object = cJSON_CreateNumber(123);cJSON *item_from_non_object = cJSON_GetObjectItem(not_an_object, "any_key");assert(item_not_found == NULL);assert(item_from_non_object == NULL);
+
+cJSON_GetObjectItemCaseSensitive:
+  description: >
+    Get an item from a cJSON object by its key, with case sensitivity.
+  params:
+    object: A pointer to the cJSON object.
+    string: The key of the item to retrieve.
+  Returns:
+    A pointer to the cJSON object associated with the specified key, or nullptr if the key does not exist or the input is not a valid object.
+  example_invariants:
+    - string should be a valid null-terminated string.
+    - should not delete the return object because its lifetime is determined by the parent object.
+    - case_sensitive
+  example:
+    - cJSON *root = cJSON_Parse("{\"UserID\": \"user-123\"}");cJSON *item_case_mismatch = cJSON_GetObjectItemCaseSensitive(root, "userid");assert(item_case_mismatch == NULL);
+    - cJSON *root = cJSON_Parse("{\"UserID\": \"user-123\"}");cJSON *item = cJSON_GetObjectItemCaseSensitive(root, "UserID");assert(cJSON_IsString(item) );assert(strcmp(item->valuestring, "user-123") == 0);
+
+cJSON_HasObjectItem:
+  description: >
+    Check if a cJSON object has an item with the specified key.
+  params:
+    object: A pointer to the cJSON object.
+    string: The key to check for existence.
+  Returns:
+    A cJSON_bool indicating whether the item with the specified key exists in the object.
+  example_invariants:
+    - string should be a valid null-terminated string.
+    - will return 0 if the input is not a valid object or if the key does not exist
+    - will return 1 if the key exists in the object
+  example:
+    - cJSON *root = cJSON_Parse("{\"ContentType\": \"application/json\"}"); cJSON_bool has_item = cJSON_HasObjectItem(root, "contenttype");assert(has_item == 1 );
+    - cJSON *root = cJSON_Parse("{\"port\": 8080}");cJSON_bool has_non_existent = cJSON_HasObjectItem(root, "host"); cJSON *not_object = cJSON_CreateArray();cJSON_bool has_in_array = cJSON_HasObjectItem(not_object, "any");assert(has_non_existent == 0); assert(has_in_array == 0);
+
+cJSON_GetErrorPtr:
+  description: >
+    Get a pointer to the position in the JSON string where the last parse error occurred.
+  params: []
+  Returns:
+    A pointer to the character in the JSON string where the last parse error occurred, or nullptr if no error has occurred.
+  example_invariants:
+    - will return nullptr if no parse error has occurred
+    - will return a valid pointer to a character in the JSON string if a parse error has occurred
+    - the returned pointer should not be modified or freed
+  example:
+    - const char *invalid_json_string = "{\"name\":\"John\", \"age\":, 30}";cJSON *root = cJSON_Parse(invalid_json_string);const char *error_location = cJSON_GetErrorPtr(); assert(error_location != NULL);assert(error_location > invalid_json_string );ptrdiff_t offset = error_location - invalid_json_string;assert(offset == strlen("{\"name\":\"John\", \"age\":") );
+
+cJSON_GetStringValue:
+  description: >
+    Get the string value of a cJSON string object.
+  params:
+    item: A pointer to the cJSON string object.
+  Returns:
+    A pointer to the null-terminated string value, or nullptr if the input is not a valid string object.
+  example_invariants:
+    - item should be a valid pointer to a cJSON object or nullptr.
+    - will return nullptr if the input is not a valid string object
+    - will not modify the input item
+  example:
+    - cJSON *item = cJSON_CreateString("Hello");char *str = cJSON_GetStringValue(item);assert(item != NULL && item->type == cJSON_String);assert(str == item->valuestring);
+    - cJSON *item = cJSON_CreateNumber(42);char *str = cJSON_GetStringValue(item); assert(item != NULL && item->type != cJSON_String);assert(str == NULL);
+
+cJSON_GetNumberValue:
+  description: >
+    Get the numeric value of a cJSON number object.
+  params:
+    item: A pointer to the cJSON number object.
+  Returns:
+    The numeric value as a double, or NaN if the input is not a valid number object.
+  example_invariants:
+    - item should be a valid pointer to a cJSON object or nullptr.
+    - will return NaN if the input is not a valid number object
+    - will not modify the input item
+  example:
+    - cJSON *item = cJSON_CreateNumber(3.14); double num = cJSON_GetNumberValue(item);assert(item != NULL && item->type == cJSON_Number);assert(num == item->valuedouble);
+    - cJSON *item = cJSON_CreateString("Not a number"); double num = cJSON_GetNumberValue(item);assert(item != NULL && item->type != cJSON_Number);assert(isnan(num));
+
+cJSON_IsInvalid:
+  description: >
+    Check if a cJSON object is of type cJSON_Invalid.
+  params:
+    item: A pointer to the cJSON object to check.
+  Returns:
+    A cJSON_bool indicating whether the object is of type cJSON_Invalid.
+  example_invariants:
+    - item should be a valid pointer to a cJSON object or nullptr.
+    - will return 1 if the object is of type cJSON_Invalid
+    - will return 0 if the object is not of type cJSON_Invalid or if the input is nullptr
+  example:
+    - cJSON invalid_item = {0};assert(cJSON_IsInvalid(&invalid_item)); assert(!cJSON_IsInvalid(NULL));
+    - cJSON *valid_item = cJSON_CreateString("hello world");assert(!cJSON_IsInvalid(valid_item));
+
+cJSON_IsFalse:
+  description: >
+    Check if a cJSON object is of type cJSON_False.
+  params:
+    item: A pointer to the cJSON object to check.
+  Returns:
+    A cJSON_bool indicating whether the object is of type cJSON_False.
+  example_invariants:
+    - item should be a valid pointer to a cJSON object or nullptr.
+    - will return 1 if the object is of type cJSON_False
+    - will return 0 if the object is not of type cJSON_False or if the input is nullptr
+  example:
+    - cJSON *false_item = cJSON_CreateFalse(); assert(cJSON_IsFalse(false_item));
+    - cJSON *true_item = cJSON_CreateTrue(); cJSON *number_item = cJSON_CreateNumber(0);assert(!cJSON_IsFalse(true_item));assert(!cJSON_IsFalse(number_item));assert(!cJSON_IsFalse(NULL));
+
+cJSON_IsTrue: 
+  description: >
+    Check if a cJSON object is of type cJSON_True.
+  params:
+    item: A pointer to the cJSON object to check.
+  Returns:
+    A cJSON_bool indicating whether the object is of type cJSON_True.
+  example_invariants:
+    - item should be a valid pointer to a cJSON object or nullptr.
+    - will return 1 if the object is of type cJSON_True
+    - will return 0 if the object is not of type cJSON_True or if the input is nullptr
+  example:
+    -  cJSON *true_item = cJSON_CreateTrue();  assert(cJSON_IsTrue(true_item));
+    - cJSON *false_item = cJSON_CreateFalse(); cJSON *number_item = cJSON_CreateNumber(1); assert(!cJSON_IsTrue(false_item)); assert(!cJSON_IsTrue(number_item));assert(!cJSON_IsTrue(NULL));
+
+cJSON_IsBool:
+  description: >
+    Check if a cJSON object is of type cJSON_True or cJSON_False.
+  params:
+    item: A pointer to the cJSON object to check.
+  Returns:
+    A cJSON_bool indicating whether the object is of type cJSON_True or cJSON_False.
+  example_invariants:
+    - item should be a valid pointer to a cJSON object or nullptr.
+    - will return 1 if the object is of type cJSON_True or cJSON_False
+    - will return 0 if the object is not of type cJSON_True or cJSON_False or if the input is nullptr
+  example:
+    - cJSON *true_item = cJSON_CreateTrue(); cJSON *false_item = cJSON_CreateFalse();assert(cJSON_IsBool(true_item));assert(cJSON_IsBool(false_item));
+    - cJSON *number_item = cJSON_CreateNumber(1); cJSON *string_item = cJSON_CreateString("true");assert(!cJSON_IsBool(number_item));assert(!cJSON_IsBool(string_item)); assert(!cJSON_IsBool(NULL));
+
+cJSON_IsNull:
+  description: >
+    Check if a cJSON object is of type cJSON_NULL.
+  params:
+    item: A pointer to the cJSON object to check.
+  Returns:
+    A cJSON_bool indicating whether the object is of type cJSON_NULL.
+  example_invariants:
+    - item should be a valid pointer to a cJSON object or nullptr.
+    - will return 1 if the object is of type cJSON_NULL
+    - will return 0 if the object is not of type cJSON_NULL or if the input is nullptr
+  example:
+    - cJSON *null_item = cJSON_CreateNull(); assert(cJSON_IsNull(null_item));
+    - cJSON *true_item = cJSON_CreateTrue(); cJSON *number_item = cJSON_CreateNumber(0);assert(!cJSON_IsNull(true_item));assert(!cJSON_IsNull(number_item));assert(!cJSON_IsNull(NULL));
+
+cJSON_IsNumber:
+  description: >
+    Check if a cJSON object is of type cJSON_Number.
+  params:
+    item: A pointer to the cJSON object to check.
+  Returns:
+    A cJSON_bool indicating whether the object is of type cJSON_Number.
+  example_invariants:
+    - item should be a valid pointer to a cJSON object or nullptr.
+    - will return 1 if the object is of type cJSON_Number
+    - will return 0 if the object is not of type cJSON_Number or if the input is nullptr
+  example:
+    - cJSON *number_item = cJSON_CreateNumber(3.14); assert(cJSON_IsNumber(number_item));
+    - cJSON *true_item = cJSON_CreateTrue(); cJSON *string_item = cJSON_CreateString("123");assert(!cJSON_IsNumber(true_item ));assert(!cJSON_IsNumber(string_item));assert(!cJSON_IsNumber(NULL));
+
+cJSON_IsString:
+  description: >
+    Check if a cJSON object is of type cJSON_String.
+  params:
+    item: A pointer to the cJSON object to check.
+  Returns:
+    A cJSON_bool indicating whether the object is of type cJSON_String.
+  example_invariants:
+    - item should be a valid pointer to a cJSON object or nullptr.
+    - will return 1 if the object is of type cJSON_String
+    - will return 0 if the object is not of type cJSON_String or if the input is nullptr
+  example:
+    - cJSON *string_item = cJSON_CreateString("hello world"); assert(cJSON_IsString(string_item));
+    - cJSON *number_item = cJSON_CreateNumber(123); cJSON *true_item = cJSON_CreateTrue();assert(!cJSON_IsString(number_item));assert(!cJSON_IsString(true_item));assert(!cJSON_IsString(NULL));
+
+cJSON_IsArray:
+  description: >
+    Check if a cJSON object is of type cJSON_Array.
+  params:
+    item: A pointer to the cJSON object to check.
+  Returns:
+    A cJSON_bool indicating whether the object is of type cJSON_Array.
+  example_invariants:
+    - item should be a valid pointer to a cJSON object or nullptr.
+    - will return 1 if the object is of type cJSON_Array
+    - will return 0 if the object is not of type cJSON_Array or if the input is nullptr
+  example:
+    - cJSON *array_item = cJSON_CreateArray(); assert(cJSON_IsArray(array_item));
+    - cJSON *object_item = cJSON_CreateObject(); cJSON *string_item = cJSON_CreateString("array");assert(!cJSON_IsArray(object_item));assert(!cJSON_IsArray(string_item));assert(!cJSON_IsArray(NULL));
+
+cJSON_IsObject:
+  description: >
+    Check if a cJSON object is of type cJSON_Object.
+  params:
+    item: A pointer to the cJSON object to check. 
+  Returns:
+    A cJSON_bool indicating whether the object is of type cJSON_Object.
+  example_invariants:
+    - item should be a valid pointer to a cJSON object or nullptr.
+    - will return 1 if the object is of type cJSON_Object
+    - will return 0 if the object is not of type cJSON_Object or if the input is nullptr
+  example:
+    - cJSON *object_item = cJSON_CreateObject(); assert(cJSON_IsObject(object_item));
+    - cJSON *array_item = cJSON_CreateArray(); cJSON *string_item = cJSON_CreateString("object");assert(!cJSON_IsObject(array_item));assert(!cJSON_IsObject(string_item));assert(!cJSON_IsObject(NULL));
+
+cJSON_IsRaw:
+  description: >
+    Check if a cJSON object is of type cJSON_Raw.
+  params:
+    item: A pointer to the cJSON object to check.
+  Returns:
+    A cJSON_bool indicating whether the object is of type cJSON_Raw.
+  example_invariants:
+    - item should be a valid pointer to a cJSON object or nullptr.
+    - will return 1 if the object is of type cJSON_Raw
+    - will return 0 if the object is not of type cJSON_Raw or if the input is nullptr
+  example:
+    - cJSON *raw_item = cJSON_CreateRaw("{\"key\":\"value\"}"); assert(cJSON_IsRaw(raw_item));
+    - cJSON *string_item = cJSON_CreateString("raw"); cJSON *number_item = cJSON_CreateNumber(123);assert(!cJSON_IsRaw(string_item));assert(!cJSON_IsRaw(number_item));assert(!cJSON_IsRaw(NULL));
+
+cJSON_CreateNull:
+  description: >
+    Create a new cJSON object of type cJSON_NULL.
+  params: []
+  Returns:
+    A pointer to the newly created cJSON_NULL object, or nullptr if memory allocation fails.
+  example_invariants:
+    - The returned pointer should be freed by cJSON_Delete or the custom free function set via cJSON_InitHooks.
+    - The returned object should have its type set to cJSON_NULL.
+  example:
+    - cJSON *null_item = cJSON_CreateNull(); assert(null_item != NULL); assert(null_item->type == cJSON_NULL); cJSON_Delete(null_item);
+    - cJSON *null_item = cJSON_CreateNull(); assert(null_item != NULL); assert(null_item->type == cJSON_NULL); assert(null_item->valueint == 0); assert(null_item->valuedouble == 0.0); cJSON_Delete(null_item);
+
+cJSON_CreateTrue:
+  description: >
+    Create a new cJSON object of type cJSON_True.
+  params: []
+  Returns:  
+    A pointer to the newly created cJSON_True object, or nullptr if memory allocation fails.
+  example_invariants:
+    - The returned pointer should be freed by cJSON_Delete or the custom free function set via cJSON_InitHooks.
+    - The returned object should have its type set to cJSON_True.
+  example: 
+    - cJSON *true_item = cJSON_CreateTrue(); assert(true_item != NULL);assert(cJSON_IsTrue(true_item));assert(cJSON_IsBool(true_item));
+    - cJSON *config = cJSON_CreateObject(); assert(config != NULL); cJSON *is_enabled = cJSON_CreateTrue();cJSON_AddItemToObject(config, "isEnabled", is_enabled);cJSON *item = cJSON_GetObjectItem(config, "isEnabled");assert(cJSON_IsTrue(item));
+
+cJSON_CreateFalse:
+  description: >
+    Create a new cJSON object of type cJSON_False.
+  params: []
+  Returns:
+    A pointer to the newly created cJSON_False object, or nullptr if memory allocation fails
+  example_invariants:
+    - The returned pointer should be freed by cJSON_Delete or the custom free function set via cJSON_InitHooks.
+    - The returned object should have its type set to cJSON_False
+  example:
+    - cJSON *false_item = cJSON_CreateFalse(); assert(false_item != NULL); assert(cJSON_IsFalse(false_item)); assert(cJSON_IsBool(false_item));
+    - cJSON *config = cJSON_CreateObject(); assert(config != NULL); cJSON *is_enabled = cJSON_CreateFalse();cJSON_AddItemToObject(config, "isEnabled", is_enabled);cJSON *item = cJSON_GetObjectItem(config, "isEnabled");assert(cJSON_IsFalse (item)); 
+
+
+cJSON_CreateBool:
+  description: >
+    Create a new cJSON object of type cJSON_True or cJSON_False based on the input boolean value.
+  params:
+    boolean: A cJSON_bool indicating the boolean value (true or false).
+  Returns:
+    A pointer to the newly created cJSON_True or cJSON_False object, or nullptr if memory allocation fails.
+  example_invariants:
+    - The returned pointer should be freed by cJSON_Delete or the custom free function set via cJSON_InitHooks.
+    - The returned object should have its type set to cJSON_True if boolean is true, or cJSON_False if boolean is false.
+  example:
+    - cJSON *true_item = cJSON_CreateBool(1); assert(true_item != NULL); assert(cJSON_IsTrue(true_item)); assert(cJSON_IsBool(true_item)); 
+    - cJSON *false_item = cJSON_CreateBool(0); assert(false_item != NULL); assert(cJSON_IsFalse(false_item)); assert(cJSON_IsBool(false_item));
+
+cJSON_CreateNumber:
+  description: >
+    Create a new cJSON object of type cJSON_Number with the specified numeric value.
+  params:
+    num: A double representing the numeric value to be assigned to the cJSON_Number object.
+  Returns:
+    A pointer to the newly created cJSON_Number object, or nullptr if memory allocation fails.
+  example_invariants:
+    - The returned pointer should be freed by cJSON_Delete or the custom free function set via cJSON_InitHooks.
+    - The returned object should have its type set to cJSON_Number and its valuedouble set to the input number.
+  example:
+    - cJSON *number_item = cJSON_CreateNumber(3.14); assert(number_item != NULL); assert(cJSON_IsNumber(number_item)); assert(number_item->valuedouble == 3.14);
+    - cJSON *negative_number = cJSON_CreateNumber(-42.0); assert(negative_number != NULL); assert(cJSON_IsNumber(negative_number)); assert(negative_number->valuedouble == -42.0); 
+
+cJSON_CreateString:
+  description: >
+    Create a new cJSON object of type cJSON_String with the specified string value.
+  params:
+    string: A pointer to a null-terminated string to be assigned to the cJSON_String object.
+  Returns:
+    A pointer to the newly created cJSON_String object, or nullptr if memory allocation fails.
+  example_invariants:
+    - The returned pointer should be freed by cJSON_Delete or the custom free function set via cJSON_InitHooks.
+    - The returned object should have its type set to cJSON_String and its valuestring set to a copy of the input string.
+  example:
+    - cJSON *string_item = cJSON_CreateString("Hello, World!"); assert(string_item != NULL); assert(cJSON_IsString(string_item)); assert(strcmp(string_item->valuestring, "Hello, World!") == 0); 
+    - const char *empty_str = ""; cJSON *empty_string_item = cJSON_CreateString(empty_str); assert(empty_string_item != NULL); assert(cJSON_IsString(empty_string_item)); assert(strcmp(empty_string_item->valuestring, empty_str) == 0); 
+
+cJSON_CreateRaw:
+  description: >
+    Create a new cJSON object of type cJSON_Raw with the specified raw JSON string
+  params:
+    raw: A pointer to a null-terminated string containing the raw JSON data.
+  Returns:
+    A pointer to the newly created cJSON_Raw object, or nullptr if memory allocation fails
+  example_invariants:
+    - The returned pointer should be freed by cJSON_Delete or the custom free function set via cJSON_InitHooks.
+    - The returned object should have its type set to cJSON_Raw and its valuestring set to a copy of the input raw string.
+  example:
+    - const char *raw_json = "{\"key\":\"value\"}"; cJSON *raw_item = cJSON_CreateRaw(raw_json); assert(raw_item != NULL); assert(cJSON_IsRaw(raw_item)); assert(strcmp(raw_item->valuestring, raw_json) == 0); 
+    - const char *empty_raw = ""; cJSON *empty_raw_item = cJSON_CreateRaw(empty_raw); assert(empty_raw_item != NULL); assert(cJSON_IsRaw(empty_raw_item)); assert(strcmp(empty_raw_item->valuestring, empty_raw) == 0); 
+
+cJSON_CreateArray:
+  description: >
+    Create a new cJSON object of type cJSON_Array.
+  params: []
+  Returns:
+    A pointer to the newly created cJSON_Array object, or nullptr if memory allocation fails.
+  example_invariants:
+    - The returned pointer should be freed by cJSON_Delete or the custom free function set via cJSON_InitHooks.
+    - The returned object should have its type set to cJSON_Array and its child pointer set to nullptr.
+  example:
+    - cJSON *array_item = cJSON_CreateArray(); assert(array_item != NULL); assert(cJSON_IsArray(array_item)); assert(array_item->child == NULL);
+    - cJSON *array_item = cJSON_CreateArray(); assert(array_item != NULL); assert(cJSON_IsArray(array_item)); assert(array_item->child == NULL); assert(array_item->type == cJSON_Array);
+
+cJSON_CreateObject:
+  description: >
+    Create a new cJSON object of type cJSON_Object.
+  params: []
+  Returns:
+    A pointer to the newly created cJSON_Object object, or nullptr if memory allocation fails.
+  example_invariants:
+    - The returned pointer should be freed by cJSON_Delete or the custom free function set via cJSON_InitHooks.
+    - The returned object should have its type set to cJSON_Object and its child pointer set to nullptr.
+  example:
+    - cJSON *object_item = cJSON_CreateObject(); assert(object_item != NULL); assert(cJSON_IsObject(object_item)); assert(object_item->child == NULL);
+    - cJSON *object_item = cJSON_CreateObject(); assert(object_item != NULL); assert(cJSON_IsObject(object_item)); assert(object_item->child == NULL); assert(object_item->type == cJSON_Object);
+
+cJSON_CreateStringReference:
+  description: >
+    Create a new cJSON object of type cJSON_String that references an existing string without copying it.
+  params:
+    string: A pointer to a null-terminated string to be referenced by the cJSON_String object.
+  Returns:
+    A pointer to the newly created cJSON_String object, or nullptr if memory allocation fails.
+  example_invariants:
+    - The returned pointer should be freed by cJSON_Delete or the custom free function set via cJSON_InitHooks.
+    - The returned object should have its type set to cJSON_String and its valuestring set to point to the input string.
+    - The input string should remain valid for the lifetime of the cJSON_String object.
+  example:
+    - const char *external_str = "External String"; cJSON *string_ref = cJSON_CreateStringReference(external_str); assert(string_ref != NULL); assert(cJSON_IsString(string_ref)); assert(string_ref->valuestring == external_str); 
+    - const char *empty_str = ""; cJSON *empty_string_ref = cJSON_CreateStringReference(empty_str); assert(empty_string_ref != NULL); assert(cJSON_IsString(empty_string_ref)); assert(empty_string_ref->valuestring == empty_str);
+
+cJSON_CreateObjectReference:
+  description: >
+    Create a new cJSON object of type cJSON_Object that references an existing cJSON object without copying it.
+  params:
+    child: A pointer to the cJSON object to be referenced.
+  Returns:
+    A pointer to the newly created cJSON_Object object, or nullptr if memory allocation fails.
+  example_invariants:
+    - The returned pointer should be freed by cJSON_Delete or the custom free function set via cJSON_InitHooks.
+    - The returned object should have its type set to cJSON_Object and its child pointer set to point to the input item.
+    - The input item should remain valid for the lifetime of the cJSON_Object reference.
+    - The original object should not be deleted while the reference exists, the original object should still available after the reference is deleted.  
+  example:
+    -  cJSON *original_child = cJSON_CreateString("child_item");cJSON* obj_ref = cJSON_CreateObjectReference(original_child); assert(obj_ref != NULL); assert(cJSON_IsObject(obj_ref)); assert(obj_ref->child == original_child); cJSON_Delete(obj_ref);
+    - cJSON *empty_obj_ref = cJSON_CreateObjectReference(NULL); assert(empty_obj_ref != NULL); assert(cJSON_IsObject(empty_obj_ref)); assert(empty_obj_ref->child == NULL); 
+
+cJSON_CreateArrayReference:
+  description: >
+    Create a new cJSON object of type cJSON_Array that references an existing cJSON array
+  params:
+    child: A pointer to the cJSON array to be referenced.
+  Returns:
+    A pointer to the newly created cJSON_Array object, or nullptr if memory allocation fails.
+  example_invariants:
+    - The returned pointer should be freed by cJSON_Delete or the custom free function set via cJSON_InitHooks.
+    - The returned object should have its type set to cJSON_Array and its child pointer set to point to the input item.
+    - The input item should remain valid for the lifetime of the cJSON_Array reference.
+    - The original array should not be deleted while the reference exists, the original array should still available after the reference is deleted.  
+  example:
+    - cJSON *original_element = cJSON_CreateNumber(42); cJSON* arr_ref = cJSON_CreateArrayReference(original_element); assert(arr_ref != NULL); assert(cJSON_IsArray(arr_ref)); assert(arr_ref->child == original_element); cJSON_Delete(arr_ref);  cJSON_Delete(original_element);
+    - cJSON *empty_arr_ref = cJSON_CreateArrayReference(NULL); assert(empty_arr_ref != NULL); assert(cJSON_IsArray(empty_arr_ref)); assert(empty_arr_ref->child == NULL); cJSON_Delete(empty_arr_ref);

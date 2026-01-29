@@ -1,0 +1,1244 @@
+zlibVersion:
+  description: >
+    Returns a pointer to the version string of the zlib library linked at runtime.
+  params: {}
+
+  Returns:
+    the version string of the zlib library linked at runtime.
+
+  example_invariants:
+    - The returned string is a valid null-terminated C string.
+    - The returned string is not NULL.
+  examples:
+    - zlibversion() != NULL
+
+deflateInit:
+  description: >
+    Initializes the internal stream state for compression.
+  params:
+    strm: A pointer to a z_stream structure that holds the state of the compression.
+    level: The compression level (0-9).
+  Returns:
+    Z_OK: if success,
+    Z_MEM_ERROR: if there was not enough memory
+    Z_STREAM_ERROR: if level is not a valid compression level
+    Z_VERSION_ERROR: if the zlib library version (zlib_version) is incompatible with the version assumed by the caller (ZLIB_VERSION)
+  example_invariants:
+    - strm must not be NULL.
+    - level must be between 0 and 9 inclusive.
+    - strm may have NULL pointers before the call; deflateInit will initialize internal pointers
+    - adler should be initialized to 1 after the call if it is standard zlib format, if gzip format, adler will be initialized to 0.
+    - all pointers in strm should be valid pointers after the call.
+  examples:
+    - deflateInit(strm, 6) == Z_OK
+    - deflateInit(NULL, 6) == Z_STREAM_ERROR
+    - deflateInit(strm, 10) == Z_STREAM_ERROR
+
+deflate:
+  description: >
+    deflate compresses as much data as possible, and stops when the input buffer becomes empty or the output buffer becomes full.
+  params:
+    strm: A pointer to a z_stream structure that holds the state of the compression.
+    flush: The flush mode (Z_NO_FLUSH, Z_PARTIAL_FLUSH, Z_SYNC_FLUSH, Z_FULL_FLUSH, Z_FINISH, Z_BLOCK).
+  Returns:
+    Z_OK: if some progress has been made
+    Z_STREAM_END: if all input has been consumed and all output has been produced 
+    Z_BUF_ERROR: if no progress is possible
+    Z_STREAM_ERROR: if the stream state is inconsistent
+  example_invariants:
+    - avail_out should never be zero before the call.
+    - next_out cannot be NULL if avail_out is not zero.
+    - if avail_in is not zero, next_in cannot be NULL.
+    - avail_in will minus the number of bytes consumed from the input buffer, next_in will advance by that amount,
+    - avail_out will minus the number of bytes written to the output buffer, next_out will advance by that amount.
+  examples:
+    - strm->avail_in > 0 and strm->next_in != NULL and strm->avail_out > 0 and strm->next_out != NULL
+    - strm.adler !=1
+
+deflateEnd:
+  description: >
+    deflateEnd frees all dynamically allocated data structures for the given stream.
+  params:
+    strm: A pointer to a z_stream structure that holds the state of the compression.
+  Returns:
+    Z_OK: if success,
+    Z_STREAM_ERROR: if the stream state is inconsistent
+    Z_DATA_ERROR: if the stream was freed while there was still some data to compress
+  example_invariants:
+    - strm must not be NULL before the call.
+    - strm must have been initialized by deflateInit or deflateInit2.
+    - strm state should be null if the call Returns Z_OK.
+    - if flush is not Z_FINISH, there may be some data left to compress, and the function will return Z_DATA_ERROR.
+  examples:
+    - if deflateEnd(strm) == Z_OK, then strm->state == Z_NULL
+    - deflateEnd(NULL) == Z_STREAM_ERROR    
+
+inflateInit:
+  description: >
+    Initializes the internal stream state for decompression.
+  params:
+    strm: A pointer to a z_stream structure that holds the state of the decompression
+  Returns:
+    Z_OK: if success,
+    Z_MEM_ERROR: if there was not enough memory
+    Z_STREAM_ERROR: if the stream state is inconsistent
+    Z_VERSION_ERROR: if the zlib library version (zlib_version) is incompatible with the version assumed by the caller (ZLIB_VERSION)
+  example_invariants:
+    - strm must not be NULL.
+    - zalloc, zfree and opaque should be initialized after the call.
+    - adler should be initialized to 1 after the call if it is standard zlib format, if gzip format, adler will be initialized to 0.
+  examples:
+    - strm != Z_NULL and inflateInit(strm) == Z_OK
+    - inflateInit(NULL) == Z_STREAM_ERROR
+    - inflateInit(strm) == Z_OK and strm.zalloc != NULL and strm.zfree != NULL and strm.opaque != NULL
+
+inflate:
+  description: >
+    inflate decompresses as much data as possible, and stops when the input buffer becomes empty or the output buffer becomes full.
+  params:
+    strm: A pointer to a z_stream structure that holds the state of the decompression
+    flush: The flush mode (Z_NO_FLUSH, Z_SYNC_FLUSH, Z_FULL_FLUSH, Z_FINISH, Z_BLOCK).
+  Returns:
+    Z_OK: if some progress has been made
+    Z_STREAM_END: if the end of the compressed data has been reached and all output has been produced
+    Z_BUF_ERROR: if no progress is possible
+    Z_DATA_ERROR: if the input data was corrupted or incomplete
+    Z_STREAM_ERROR: if the stream state is inconsistent
+    Z_NEED_DICT: if a preset dictionary is needed at this point
+  example_invariants:
+    - strm must not be NULL before the call.
+    - strm state should not be null before the call
+    - if avail_in is not zero, next_in cannot be NULL.
+    - if avail_out is not zero, next_out cannot be NULL.
+    - avail_in will minus the number of bytes consumed from the input buffer, next_in will advance by that amount,
+    - avail_out will minus the number of bytes written to the output buffer, next_out will advance by that amount.
+  examples:
+    - if strm->avail_in > 0 then strm->next_in != NULL
+    - if strm->avail_out > 0 then strm->next_out != NULL
+    - strm->adler !=1
+  
+inflateEnd:
+  description: >
+    All dynamically allocated data structures for this stream are freed.
+  params:
+    strm: A pointer to a z_stream structure that holds the state of the decompression
+  Returns:
+    Z_OK: if success,
+    Z_STREAM_ERROR: if the stream state is inconsistent
+  example_invariants:
+    - strm must not be NULL before the call.
+    - strm must have been initialized by inflateInit or inflateInit2.
+    - strm should be null if the call Returns Z_OK. 
+  examples:
+    - if inflateEnd(strm) == Z_OK, then strm == Z_NULL
+    - inflateEnd(NULL) == Z_STREAM_ERROR
+
+deflateSetDictionary:
+  description: >
+    Initializes the compression dictionary from the given byte sequence without producing any compressed output.
+  params:
+    strm: A pointer to a z_stream structure that holds the state of the compression.
+    dictionary: A pointer to the dictionary data.
+    dictLength: The length of the dictionary data.
+  Returns:
+    Z_OK: if success,
+    Z_STREAM_ERROR: if the stream state is inconsistent
+  example_invariants:
+    - strm must not be NULL before the call.
+    - When using the zlib format, this function must be called immediately after deflateInit, deflateInit2 or deflateReset, and before any call of deflate.  
+    - When doing raw deflate, this function must be called either before any call of deflate
+    - dictLength must be between 1 and 32K inclusive.
+  examples:
+    - strm !=NULL
+    - after call, assert(strm.adler == adler32(0L, dictionary, sizeof(dictionary)));
+    - uLong initial_total_in = strm.total_in;deflateSetDictionary(&strm, dictionary, sizeof(dictionary)); assert(strm.total_in == initial_total_in);
+
+deflateGetDictionary:
+  description: >
+    deflateGetDictionary retrieves the dictionary set by deflateSetDictionary.
+  params:
+    strm: A pointer to a z_stream structure that holds the state of the compression.
+    dictionary: A pointer to a buffer where the dictionary will be copied.
+    dictLength: A pointer to a variable that holds the size of the buffer. After the call, it will contain the actual size of the dictionary copied.
+  Returns:
+    Z_OK: if success,
+    Z_STREAM_ERROR: if the stream state is inconsistent
+  example_invariants:
+    - strm must not be NULL before the call.
+    - dictLength bigger then 0 after the call.
+    - api does not change strm state.
+  examples:
+    - strm != NULL and dictLength > 0 after the call
+    - uLong initial_total_in = strm.total_in; deflateGetDictionary(&strm, dictionary, &dictLength); assert(strm.total_in == initial_total_in);
+
+deflateCopy:
+  description: >
+    Sets the destination stream as a complete copy of the source stream.
+  params:
+    dest: A pointer to the destination z_stream structure.
+    source: A pointer to the source z_stream structure.
+  Returns:
+    Z_OK: if success,
+    Z_MEM_ERROR: if there was not enough memory
+    Z_STREAM_ERROR: if the stream state is inconsistent
+  example_invariants:
+    - source and dest must not be NULL before the call.
+    - all statistics are copied to dest.
+  examples:
+    - dest_strm.state!=source_strm.state after the call
+    - dest_strm.total_in == source_strm.total_in after the call
+
+deflateReset:
+  description: >
+    This function is equivalent to deflateEnd followed by deflateInit, but does not free and reallocate the internal compression state
+  params:
+    strm: A pointer to a z_stream structure that holds the state of the compression.
+  Returns:
+    Z_OK: if success,
+    Z_STREAM_ERROR: if the stream state is inconsistent
+  example_invariants:
+    - strm must not be NULL before the call.
+    - total_in, total_out, msg, adler should be reset.
+    - state will remain allocated.
+    - if  deflateReset(strm) == Z_OK, then msg should be null
+  examples:
+    - strm != NULL and deflateReset(strm) == Z_OK
+    - if deflateReset(strm) == Z_OK, then strm.total_in == 0 and strm.total_out == 0 and strm.msg == Z_NULL and strm.adler == 1
+    - voidpf initial_state_ptr = strm.state; deflateReset(strm); assert(strm.state == initial_state_ptr);
+
+deflateParams:
+  description: >
+    Dynamically update the compression level and strategy.
+  params:
+    strm: A pointer to a z_stream structure that holds the state of the compression.
+    level: The new compression level (0-9).
+    strategy: The new compression strategy (Z_DEFAULT_STRATEGY, Z_FILTERED, Z_HUFFMAN_ONLY, Z_RLE, Z_FIXED).
+  Returns:
+    Z_OK: if success,
+    Z_STREAM_ERROR: if the stream state is inconsistent
+    Z_BUF_ERROR:   there was not enough output space to complete the compression of the available input data before a change in the strategy or approach
+  example_invariants:
+    - if avail_out is not enough to hold the output, the function will return Z_BUF_ERROR and no changes will be made to the compression level or strategy.
+    - if return Z_OK, the new level and strategy will be applied to all future compression operations.
+  examples:
+    - strm != NULL and level between 0 and 9 and strategy in {Z_DEFAULT_STRATEGY, Z_FILTERED, Z_HUFFMAN_ONLY, Z_RLE, Z_FIXED}
+    - if deflateParams(strm, new_level, new_strategy) == Z_OK then strm.level == new_level and strm.strategy == new_strategy
+    - if deflateParams(strm, new_level, new_strategy) == Z_BUF_ERROR then strm.level and strm.strategy remain unchanged
+
+deflateTune: 
+  description: >
+    Fine tune deflate's internal compression parameters.
+  params:
+    strm: A pointer to a z_stream structure that holds the state of the compression.
+    good_length: The minimum match length for the lazy match evaluation.
+    max_lazy: The maximum match length for the lazy match evaluation.
+    nice_length: The match length at which to stop searching for a longer match.
+    max_chain: The maximum number of hash chain nodes to search for a match.
+  Returns:
+    Z_OK: if success,
+    Z_STREAM_ERROR: if the stream state is inconsistent
+  example_invariants:
+    - message should not be changed after the call.
+    - total_in and total_out should not be changed after the call.
+    - number parameters should be positive.
+  examples:
+    - if deflateTune(strm, 32, 258, 128, 4096) == Z_OK then strm.good_length == 32 and strm.max_lazy == 258 and strm.nice_length == 128 and strm.max_chain == 4096
+    - initial_total_in = strm.total_in; initial_total_out = strm.total_out; initial_msg = strm.msg; deflateTune(strm, 32, 258, 128, 4096); assert(strm.total_in == initial_total_in and strm.total_out == initial_total_out and strm.msg == initial_msg);
+
+deflateBound:
+  description: >
+    deflateBound Returns an upper bound on the compressed size after deflation of input data that is uncompressedSize bytes long.
+  params:
+    strm: A pointer to a z_stream structure that holds the state of the compression.
+    sourceLen: The length of the input data in bytes.
+  Returns:
+    An upper bound on the compressed size in bytes.
+  example_invariants:
+    - bound should be greater than or equal to sourceLen.
+    - bound should be greater than deflate's total_out
+    - should be used after deflateSetHeader
+    - will not change the state of strm
+    - deflate will return Z_STREAM_END if deflate use Z_FINISH and offer all the input data
+  examples:
+    - bound = deflateBound(strm, sourceLen); assert(bound >= sourceLen);
+    - bound= deflateBound(strm, sourceLen); deflate(strm, Z_FINISH); assert(strm.total_out <= bound);assert(ret == Z_STREAM_END);
+    - uLong bound = deflateBound(strm, sourceLen); int ret = deflate(strm, Z_FINISH);assert(ret == Z_STREAM_END);assert(strm.total_out <= bound - (sourceLen >> 3));
+  
+deflatePending:
+  description: >
+    deflatePending() Returns the number of bytes and bits of output that havebeen generated, but not yet provided in the available output
+  params:
+    strm: A pointer to a z_stream structure that holds the state of the compression.
+    pending: A pointer to an unsigned integer where the number of pending bytes will be stored.
+    bits: A pointer to an integer where the number of pending bits (0..7)
+  Returns:
+    Z_OK: if success,
+    Z_STREAM_ERROR: if the stream state is inconsistent
+  example_invariants:
+    - if pending is not NULL, *pending should be bigger than or equal to 0 after the call.
+    - if bits is not NULL, *bits should be between 0 and 7 inclusive
+    - will not change the state of strm
+    - pointers will be renewed after the call
+  examples:
+    - if bits != NULL then *bits >= 0 and *bits <= 7 after the call
+    - if pending != NULL then assert(*pending >= 0) after the call
+ 
+deflateUsed:
+  description: >
+    deflateUsed() Returns in *bits the most recent number of deflate bits used in the last byte when flushing to a byte boundary.
+  params:
+    strm: A pointer to a z_stream structure that holds the state of the compression.
+    bits: A pointer to an integer
+  Returns:
+    Z_OK: if success,
+    Z_STREAM_ERROR: if the stream state is inconsistent
+  example_invariants:
+    - bits should be zero if no bytes alignment has been done.
+    - if flush happens, then bits should be 1-8
+  examples:
+    - int used bits=99; int ret = deflateUsed(&fresh_stream, &used_bits); assert(ret == Z_OK); assert(used_bits == 0);
+    - deflate(&strm, Z_SYNC_FLUSH); int used_bits=99; int ret = deflateUsed(&strm, &used_bits); assert(ret == Z_OK); assert(used_bits >= 1 && used_bits <= 8);
+
+deflatePrime:
+  description: >
+    deflatePrime() inserts bits in the deflate bit stream.
+  params:
+    strm: A pointer to a z_stream structure that holds the state of the compression.
+    bits: The bits to insert (0..16).
+    value: The number of bits to insert (0..8).
+  Returns:
+    Z_OK: if success,
+    Z_STREAM_ERROR: if the stream state is inconsistent
+    Z_BUF_ERROR: if there was not enough room in the output buffer
+  example_invariants:
+    - bits should be between 0 and 16 inclusive.
+    - will not change the state of strm except for pending and pending_out.
+    - can use deflatePending to check the change of pending and pending_out.
+  examples:
+    - if deflatePrime(strm, bits, value) == Z_OK then assert(bits >=0 && bits <=16) 
+    - initial_pending = strm.pending; initial_pending_out = strm.pending_out; deflatePrime(strm, bits, value); assert(strm.pending >= initial_pending); assert(strm.pending_out <= initial_pending_out);
+  
+deflateSetHeader:
+  description: >
+    deflateSetHeader() provides gzip header information for when a gzip stream is requested by deflateInit2().
+  params:
+    strm: A pointer to a z_stream structure that holds the state of the compression.
+    head: A pointer to a gz_header structure that holds the gzip header information.
+  Returns:
+    Z_OK: if success,
+    Z_STREAM_ERROR: if the stream state is inconsistent
+  example_invariants:
+    - strm must not be NULL before the call.
+    - head must not be NULL before the call.
+    - should be called only once after deflateInit or deflateInit2 and before deflate.
+    - will not change the state of strm except for strm->state.head
+  examples:
+    - strm != NULL and head != NULL and deflateSetHeader(strm, head) == Z_OK
+    - initial_head_ptr = strm.state.head; deflateSetHeader(strm, head); assert(strm.state.head == initial_head_ptr);
+  
+inflateInit2:
+  description: >
+    Initializes the internal stream state for decompression with the specified window size and optional gzip decoding.
+  params:
+    strm: A pointer to a z_stream structure that holds the state of the decompression.
+    windowBits: The base two logarithm of the maximum window size (8..15). Add 16 to decode gzip format.
+  Returns:
+    Z_OK: if success,
+    Z_MEM_ERROR: if there was not enough memory
+    Z_STREAM_ERROR: if the stream state is inconsistent or windowBits is invalid
+    Z_VERSION_ERROR: if the zlib library version (zlib_version) is incompatible with the version assumed by the caller (ZLIB_VERSION)
+  example_invariants:
+    - strm must not be NULL.
+    - windowBits must be values valid in documentation.
+    - total_in, total_out will be set to zero after the call. adler will be set to 1 if it is standard zlib format, if gzip format, adler will be set to 0.
+  examples:
+    - uInt avail_in_before = strm.avail_in; inflateInit2(&strm, 15); assert(strm.avail_in <= avail_in_before);
+    - int ret = inflateInit2(&strm, 15 + 32); assert(ret==Z_OK); assert(strm.total_in == 0); assert(strm.total_out == 0); assert(strm.adler == 1);
+
+inflateSetDictionary:
+  description: >
+    Initializes the decompression dictionary from the given byte sequence.
+  params:
+    strm: A pointer to a z_stream structure that holds the state of the decompression.
+    dictionary: A pointer to the dictionary data.
+    dictLength: The length of the dictionary data.
+  Returns:
+    Z_OK: if success,
+    Z_STREAM_ERROR: if the stream state is inconsistent
+    Z_DATA_ERROR: if the given dictionary does not match the expected value
+  example_invariants:
+    - should be used at once if inflate Returns Z_NEED_DICT
+    - the adler32 value in dictionary should match the value provided by inflate's adler
+  examples:
+    - int ret = inflateSetDictionary(&strm, wrong_dictionary, wrong_len); assert(ret == Z_DATA_ERROR);
+
+inflateGetDictionary:
+  description: >
+    Returns the sliding dictionary being maintained by inflate. 
+  params:
+    strm: A pointer to a z_stream structure that holds the state of the decompression
+    dictionary: A pointer to a buffer where the dictionary will be copied.
+    dictLength: A pointer to a variable that holds the size of the buffer. After the call, it will contain the actual size of the dictionary copied.
+  Returns:
+    Z_OK: if success,
+    Z_STREAM_ERROR: if the stream state is inconsistent
+  example_invariants:
+    - will return empty if you call it in an uninitialized stream.
+    - dictLength will be set to the actual size of the dictionary copied.
+    - will not change the state of strm
+  examples:
+    - strm != NULL and dictLength > 0 after the call
+    - uLong initial_total_in = strm.total_in; inflateGetDictionary(&strm, dictionary, &dictLength); assert(strm.total_in == initial_total_in);
+    - if dictionary is Z_NULL, ret can still be Z_OK
+
+inflateSync:
+  description: >
+    Skips invalid compressed data until a possible full flush point can be found.
+  params:
+    strm: A pointer to a z_stream structure that holds the state of the decompression
+  Returns:
+    Z_OK: if success,
+    Z_BUF_ERROR: if no progress is possible
+    Z_DATA_ERROR: if no flush point has been found
+    Z_STREAM_ERROR: if the stream state is inconsistent
+  example_invariants:
+    - can used after inflate Returns Z_DATA_ERROR
+    - strm's next_in should provide the buffer containing the data
+    - if return Z_OK, strm's next_in and avail_in will be updated to skip the invalid data but not change next_out and avail_out
+  examples:
+    - uLong total_out_before = strm.total_out; int ret = inflateSync(&strm); assert(strm.total_out == total_out_before)
+    - if inflateSync(&strm) == Z_OK then assert(strm_inflate.avail_in < avail_in_before);
+    - if no full flush point in the input data, inflateSync(&strm) == Z_BUF_ERROR or Z_DATA_ERROR if end of stream is reached first
+inflateCopy:
+  description: >
+    Sets the destination stream as a complete copy of the source stream.
+  params:
+    dest: A pointer to the destination z_stream structure.
+    source: A pointer to the source z_stream structure.
+  Returns:
+    Z_OK: if success,
+    Z_MEM_ERROR: if there was not enough memory
+    Z_STREAM_ERROR: if the stream state is inconsistent
+  example_invariants:
+    - source and dest must not be NULL before the call.
+    - all statistics are copied to dest.
+  examples:
+    - dest_strm.state!=source_strm.state after the call
+    - dest_strm.total_in == source_strm.total_in after the call
+
+inflateReset:
+  description: >
+    This function is equivalent to inflateEnd followed by inflateInit, but does not free and reallocate the internal decompression state
+  params:
+    strm: A pointer to a z_stream structure that holds the state of the decompression.
+  Returns:
+    Z_OK: if success,
+    Z_STREAM_ERROR: if the stream state is inconsistent
+  example_invariants:
+    - strm must not be NULL before the call.
+    - total_in, total_out, msg, adler should be reset, but next_in and next_out avail_in/avail_out will not changed by inflateReset
+    - state will remain allocated.
+    - special properties like windowBits and whether to decode gzip format will be remain.
+  examples:
+    - strm != NULL and inflateReset(strm) == Z_OK
+    - if inflateReset(strm) == Z_OK, then strm.total_in == 0 and strm.total_out == 0 and strm.msg == Z_NULL and strm.adler == 1
+    - voidpf initial_state_ptr = strm.state; inflateReset(strm); assert(strm.state == initial_state_ptr);
+
+inflateReset2:
+  description: >
+    This function is equivalent to inflateEnd followed by inflateInit2, but does not free and reallocate the internal decompression state
+  params:
+    strm: A pointer to a z_stream structure that holds the state of the decompression.
+    windowBits: The base two logarithm of the maximum window size (8..15). Add 16 to decode gzip format.
+  Returns:
+    Z_OK: if success,
+    Z_STREAM_ERROR: if the stream state is inconsistent or windowBits is invalid
+  example_invariants:
+    - strm must not be NULL before the call.
+    - windowBits must be values valid in documentation.
+    - total_in, total_out will be set to zero after the call. adler will be set to 1.
+    - special properties like windowBits and whether to decode gzip format will be updated.
+  examples:
+    - uInt avail_in_before = strm.avail_in; inflateReset2(&strm, 15); assert(strm.avail_in <= avail_in_before);
+    - int ret = inflateReset2(&strm, 15 + 32); assert(ret==Z_OK); assert(strm.total_in == 0); assert(strm.total_out == 0); assert(strm.adler == 1);
+
+inflatePrime:
+  description: >
+    inflatePrime() inserts bits in the inflate input stream.
+  params:
+    strm: A pointer to a z_stream structure that holds the state of the decompression.
+    bits: The bits to insert (-1..16).
+    value: The number of bits to insert (0..8).
+  Returns:
+    Z_OK: if success,
+    Z_STREAM_ERROR: if the stream state is inconsistent
+    Z_BUF_ERROR: if there was not enough room in the output buffer
+  example_invariants:
+    - bits should be between -1 and 16 inclusive.
+    - will not change the state of strm except for pending and pending_out.
+    - can use inflatePending to check the change of pending and pending_out.
+    - should used for raw inflate only.
+  examples:
+    - if inflatePrime(strm, bits, value) == Z_OK then assert(bits >=-1 && bits <=16) 
+    - initial_pending = strm.pending; initial_pending_out = strm.pending_out; inflatePrime(strm, bits, value); assert(strm.pending >= initial_pending); assert(strm.pending_out <= initial_pending_out);
+
+inflateMark:
+  description: >
+    Returns a long value to tell you what inflate has done so far.
+  params:
+    strm: A pointer to a z_stream structure that holds the state of the decompression
+  Returns:
+    A long value representing the current state of the inflate operation.
+  example_invariants:
+    - will not change the state of strm
+    - will not return -65536 if strm is valid
+    - if the stream is inconsistent, it will return -65536
+  examples:
+    - assert(inflateMark(strm) != -65536) if strm is valid
+    - assert(inflateMark(NULL) == -65536) if strm is NULL
+  
+inflateGetHeader:
+  description: >
+    inflateGetHeader() requests that gzip header information be stored in the provided gz_header structure. 
+  params:
+    strm: A pointer to a z_stream structure that holds the state of the decompression
+    head: A pointer to a gz_header structure where the gzip header information will be stored.
+  Returns:
+    Z_OK: if success,
+    Z_STREAM_ERROR: if the stream state is inconsistent
+  example_invariants:
+    - strm must not be NULL before the call.
+    - head must not be NULL before the call.
+    - should be called only once after inflateInit2 with windowBits set to 16 or more and before any call of inflate.
+    - will not change the state of strm except for strm->state.head
+    - call before inflate
+    - head pointers needed to be valid
+  examples:
+    - strm != NULL and head != NULL and inflateGetHeader(strm, head) == Z_OK 
+    - head.done is 0 before inflate and 1 after inflate processes the gzip header or -1 if no gzip header was present
+
+inflateBackInit:
+  description: >
+    Initializes the internal stream state for decompression using the inflateBack() function.
+  params:
+    strm: A pointer to a z_stream structure that holds the state of the decompression.
+    windowBits: The base two logarithm of the maximum window size (8..15).
+    window: A pointer to a buffer that will be used as the sliding window.
+  Returns:
+    Z_OK: if success,
+    Z_MEM_ERROR: if there was not enough memory
+    Z_STREAM_ERROR: if the stream state is inconsistent or parameters are invalid
+    Z_VERSION_ERROR: if the zlib library version (zlib_version) is incompatible with the version assumed by the caller (ZLIB_VERSION)
+  example_invariants:
+    - strm must not be NULL.
+    - windowBits must be values valid in documentation.
+    - window must not be NULL and windowSize must be at least 2^windowBits.
+    - total_in, total_out will be set to zero after the call. 
+    - windowBits should be base two logarithm of the window size
+  examples:
+    - int ret = inflateBackInit(&strm, 15, window); assert(ret == Z_OK);assert(strm.state != NULL); assert(strm.avail_in <= avail_in_before);
+
+inflateBack:
+  description: >
+    inflateBack() does a raw inflate with a single call using a call-back interface for input and output
+  params:
+    strm: A pointer to a z_stream structure that holds the state of the decompression
+    in: A pointer to a function that provides input data.
+    in_desc: A pointer to a user-defined structure that will be passed to the input function.
+    out: A pointer to a function that consumes output data.
+    out_desc: A pointer to a user-defined structure that will be passed to the output function.
+  Returns:
+    Z_STREAM_END: Success
+    Z_BUF_ERROR: function is wrong_dictionary
+    Z_DATA_ERROR: if the input data was corrupted or incomplete
+    Z_STREAM_ERROR: if the stream state is inconsistent
+  example_invariants:
+    - will use strm->next_in and strm->avail_in if there are set before the call
+  
+inflaceBackEnd:
+  description: >
+    All memory allocated by inflateBackInit() is freed.
+  params:
+    strm: A pointer to a z_stream structure that holds the state of the decompression.
+  Returns:
+    Z_OK: if success,
+    Z_STREAM_ERROR: if the stream state is inconsistent
+  example_invariants:
+    - strm must not be NULL before the call.
+    - strm must have been initialized by inflateBackInit.
+    - strm state should be null if the call Returns Z_OK.
+  examples:
+    - if inflateBackEnd(strm) == Z_OK, then strm == Z_NULL
+    - inflateBackEnd(NULL) == Z_STREAM_ERROR, or strm is already freed by inflateBackEnd
+
+zlibCompileFlags:
+  description: >
+    Returns the compile flags for the zlib library.
+  params: {}
+  Returns:
+    An integer representing the compile flags.
+  example_invariants:
+    - The returned integer is non-negative.
+    - The returned integer is a valid combination of the defined compile flags.
+    - will not change any state or global variables.
+  examples:
+    - zlibCompileFlags() >= 0
+    - (zlibCompileFlags() & ZLIB_VERNUM) == ZLIB_VERNUM
+
+
+compressBound:
+  description: >
+    compressBound() Returns an upper bound on the compressed size after compression of sourceLen bytes.
+  params:
+    sourceLen: The length of the input data in bytes.
+  Returns:
+    An upper bound on the compressed size in bytes.
+  example_invariants:
+    - bound should be greater than or equal to sourceLen.
+    - should be used before compress to allocate the destination buffer.
+    - will not change any state or global variables.
+  examples:
+    - uLongf bound = compressBound(sourceLen); assert(bound >= sourceLen);
+    - uLongf bound1 = compressBound(0); assert(bound1 == 0);
+
+compress:
+  description: >
+    compress() compresses the source buffer into the destination buffer.
+  params:
+    dest: A pointer to the destination buffer where compressed data will be stored.
+    destLen: A pointer to a variable that holds the size of the destination buffer. After the call, it will contain the actual size of the compressed data.
+    source: A pointer to the source buffer containing the data to be compressed.
+    sourceLen: The length of the source data in bytes.
+  Returns:
+    Z_OK: if success,
+    Z_MEM_ERROR: if there was not enough memory
+    Z_BUF_ERROR: if there was not enough room in the output buffer
+  example_invariants:
+    - dest and source must not be NULL before the call.
+    - destLen must be greater than or equal to compressBound(sourceLen) before the call.
+    - will not change any state or global variables.
+    - will return Z_BUF_ERROR if destLen is less than compressBound(sourceLen).
+    - destlen will be set to the actual size of the compressed data after the call, this value will be less than compressBound's value
+  examples:
+    - uLongf destLen = compressBound(sourceLen); int ret = compress(dest, &destLen, source, sourceLen); assert(ret == Z_OK); assert(destLen < compressBound(sourceLen));
+    - int ret = compress(NULL, &destLen, source, sourceLen); assert(ret == Z_BUF_ERROR);
+
+compress2:
+  description: >
+    compress2() compresses the source buffer into the destination buffer with a specified compression level.
+  params:
+    dest: A pointer to the destination buffer where compressed data will be stored.
+    destLen: A pointer to a variable that holds the size of the destination buffer. After the call, it will contain the actual size of the compressed data.
+    source: A pointer to the source buffer containing the data to be compressed.
+    sourceLen: The length of the source data in bytes.
+    level: The compression level (-1-9).
+  Returns:
+    Z_OK: if success,
+    Z_MEM_ERROR: if there was not enough memory
+    Z_BUF_ERROR: if there was not enough room in the output buffer
+    Z_STREAM_ERROR: if level is not a valid compression level
+  example_invariants:
+    - dest and source must not be NULL before the call.
+    - destLen must be greater than or equal to compressBound(sourceLen) before the call.
+    - level must be between -1 and 9 inclusive.
+    - will not change any state or global variables.
+    - will return Z_BUF_ERROR if destLen is less than compressBound(sourceLen).
+  examples:
+    - uLongf destLen = compressBound(sourceLen); int ret = compress2(dest, &destLen, source, sourceLen, 6); assert(ret == Z_OK); assert(destLen <= compressBound(sourceLen));
+    - int ret = compress2(dest, &destLen, source, sourceLen, 10); assert(ret == Z_STREAM_ERROR);
+
+uncompress:
+  description: >
+    uncompress() decompresses the source buffer into the destination buffer.
+  params:
+    dest: A pointer to the destination buffer where the uncompressed data will be stored.
+    destLen: A pointer to a variable that holds the size of the destination buffer. After the call, it will contain the actual size of the uncompressed data.
+    source: A pointer to the source buffer containing the compressed data.
+    sourceLen: The length of the source buffer in bytes.
+  Returns:
+    Z_OK: if success,
+    Z_MEM_ERROR: if there was not enough memory
+    Z_BUF_ERROR: if there was not enough room in the output buffer
+    Z_DATA_ERROR: if the input data was corrupted or incomplete
+  example_invariants:
+    - dest and source must not be NULL before the call.
+    - destLen must be big enough to hold the uncompressed data.
+    - will not change source and sourceLen
+    - Upon exit, destLen is the actual size of the uncompressed data
+  examples:
+    - uLongf initial_destLen = *destLen; uncompress(dest, destLen, source, sourceLen); assert(*destLen <= initial_destLen);
+    - int ret = uncompress(dest, destLen, corrupted_source, corrupted_sourceLen); assert(ret == Z_DATA_ERROR);
+  
+uncompress2:
+  description: >
+    uncompress() decompresses the source buffer into the destination buffer, uncompress2() is similar to uncompress(), but allows the source length to be updated
+  params:
+    dest: A pointer to the destination buffer where the uncompressed data will be stored.
+    destLen: A pointer to a variable that holds the size of the destination buffer. After the call, it will contain the actual size of the uncompressed data.
+    source: A pointer   to the source buffer containing the compressed data.
+    sourceLen: A pointer to a variable that holds the size of the source buffer. After the call, it will contain the number of source bytes consumed.
+  Returns:
+    Z_OK: if success,
+    Z_MEM_ERROR: if there was not enough memory
+    Z_BUF_ERROR: if there was not enough room in the output buffer
+    Z_DATA_ERROR: if the input data was corrupted or incomplete or try to uncompress an empty source buffer
+  example_invariants:
+    - dest and source must not be NULL before the call. 
+    - destLen must be big enough to hold the uncompressed data.
+    - will not change source and sourceLen if return Z_BUF_ERROR
+    - will return Z_DATA_ERROR if no legal zlib is provided
+  examples:
+    - uLongf initial_destLen = *destLen; uLongf initial_sourceLen = *sourceLen; uncompress2(dest, destLen, source, sourceLen); assert(*destLen <= initial_destLen); assert(*sourceLen <= initial_sourceLen);
+    - ret = uncompress2(dest_buf, &dest_len, invalid_compressed_data, &source_len); assert(ret == Z_DATA_ERROR); assert(dest_len == 0);
+gzopen:
+  description: >
+    Opens a gzip (.gz) file for reading or writing.
+  params:
+    path: The path to the file to be opened.
+    mode: The mode in which to open the file ("rb" for reading, "wb" for writing, etc.).
+  Returns:
+    A pointer to a gzFile structure representing the opened file, or NULL if an error occurred.
+  example_invariants:
+    - path and mode must not be NULL.
+    - mode should contain one of r, w, a. cannot contain 
+    - Unable to open file, memory shortage, or an invalid mode will return NULL 
+    - if use wb+ or rb+ mode, it will return NULL as well
+  examples:
+    - gzFile file = gzopen("file.gz", "rb"); assert(file != NULL);
+    - gzFile file = gzopen(NULL, "rb"); assert(file == NULL);
+    - gzFile file = gzopen("file.gz", NULL); assert(file == NULL);
+    - gzFile file = gzopen("file.gz", "invalid_mode"); assert(file == NULL);
+    - gzFile file_err = gzopen("test_invalid.gz", "r+b"); assert(file_err == NULL);
+
+gzdopen:
+  description: >
+    Associates a gzFile with an existing file descriptor fd.
+  params:
+    fd: The file descriptor to be associated with the gzFile.
+    mode: The mode in which to open the file ("rb" for reading, "wb" for writing, etc.).
+  Returns:
+    A pointer to a gzFile structure representing the opened file, or NULL if an error occurred.
+  example_invariants:
+    - fd must be a valid file descriptor.
+    - mode should contain one of r, w, a. cannot contain +
+    - if fd != -1 and mode is valid, the function should return a non-NULL gzFile pointer.
+    - if fd == -1 or mode is invalid, the function should return NULL.
+  examples:
+    - gzFile file_invalid_fd = gzdopen(-1, "wb"); assert(file_invalid_fd == NULL);
+    - int fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0644); assert(fd != -1); gzFile file = gzdopen(fd, "wb"); assert(file != NULL);
+  
+gzbuffer:
+  description: >
+     Set the internal buffer size used by this library's functions for file to size.
+  params:
+    file: A pointer to a gzFile structure representing the opened file.
+    size: The size of the buffer to be set.
+  Returns:
+    0 if success, -1 if there was an error.
+  example_invariants:
+    - should be called after gzopen or gzdopen and before any other operation on the file.
+    - file must not be NULL before the call.
+    - will return -1 if any read wrtte operations has done on the file.
+  example:
+    - gzFile file = gzopen(filename, "wb"); assert(file != NULL); int ret = gzbuffer(file, 8192); assert(ret == 0);
+    - gzFile file = gzopen(filename, "wb"); assert(file != NULL); char buffer[10]; int bytes_written = gzwrite(file, buffer, sizeof(buffer)); assert(bytes_written == sizeof(buffer)); int ret = gzbuffer(file, 8192); assert(ret == -1);
+
+gzsetparams:
+  description: >
+    Dynamically update the compression level and strategy for file.
+  params::
+    file: A pointer to a gzFile structure representing the opened file.
+    level: The new compression level (0-9).
+    strategy: The new compression strategy (Z_DEFAULT_STRATEGY, Z_FILTERED, Z_HUFFMAN_ONLY, Z_RLE, Z_FIXED).
+  Returns:
+    Z_OK: if success,
+    Z_STREAM_ERROR: if the file was not opened for writing
+    Z_ERRNO: if there is an error writing the flushed data
+    Z_MEM_ERROR: if there is a memory allocation error
+  example_invariants:
+    - file must not be NULL and it must in a writable state.
+    - level and strategy must be valid values in deflateInit2
+  examples:
+    - gzFile file = gzopen(filename, "wb"); assert(file != NULL); int ret = gzsetparams(file, 6, Z_DEFAULT_STRATEGY); assert(ret == Z_OK);
+    - gzFile file = gzopen(filename, "rb"); assert(file != NULL); int ret = gzsetparams(file, 6, Z_DEFAULT_STRATEGY); assert(ret == Z_STREAM_ERROR);
+
+gzread:
+  description: >
+    Read and decompress up to len uncompressed bytes from file into buf.
+  params:
+    file: A pointer to a gzFile structure representing the opened file.
+    buf: A pointer to the buffer where the decompressed data will be stored. 
+    len: The maximum number of uncompressed bytes to read.
+  Returns:
+    The number of uncompressed bytes read, or -1 if an error occurred.
+  example_invariants:
+    - if len is too large to fit in buf, the function will return -1. error state will be set to Z_STREAM_ERROR
+    - buf needs to point to a valid memory location with enough space to hold the decompressed data.
+    - if return value is smaller than len, it means the end of the file has been reached
+    - it will return 0 if gzread is used again and no more data is available
+    - Returns value will not equal to Original input length if double compression happened
+  examples:
+    - gzFile file = gzopen(filename, "rb"); assert(file != NULL); char buffer[1024]; int bytes_read = gzread(file, buffer, sizeof(buffer)); assert(bytes_read >= 0);
+    - gzFile file_bad = gzopen(bad_filename, "rb"); assert(file_bad != NULL); char buffer[1024]; int bytes_read = gzread(file_bad, buffer, sizeof(buffer)); assert(bytes_read == -1);
+
+gzfread:
+  description: >
+    Read and decompress up to nitems items of size size from file into buf, otherwise operating as gzread() does
+  params:
+    buf: A pointer to the buffer where the decompressed data will be stored.
+    size: The size of each item to read.
+    nitems: The number of items to read.
+    file: A pointer to a gzFile structure representing the opened file.
+  Returns:
+    The number of items read, or zero is the end of the file was reached and a full item could not be read, or if an error occurred.
+  example_invariants:
+    - if size*nitems is too large to fit in buf or it exceeds the z_size_t limit, the function will return 0 and set the error state to Z_STREAM_ERROR
+    - 0 <=return value <= nitems
+    - will return 0 if the remaining data in the file is not enough to fill the requested number of items
+  examples:
+    - int read_partial_items[3]; memset(read_partial_items, 0xEE, sizeof(read_partial_items));size_t items_read_partial = gzfread(read_partial_items, sizeof(int), 3, file_r); assert(items_read_partial > 0 && items_read_partial < 3);
+
+gzwrite:
+  description: >
+    Compress len bytes from buf and write to file.
+  params:
+    file: A pointer to a gzFile structure representing the opened file.
+    buf: A pointer to the buffer containing the data to be compressed and written.
+    len: The number of bytes to write from buf.
+  Returns:
+    The number of uncompressed bytes written, or 0 if an error occurred.
+  example_invariants:
+    - buf must not be NULL and len must be greater than 0 before the call.
+    - file must be opened in a writable mode.
+    - will return 0 if there is an error writing the data
+    - will return 0 if file is opened in a non-writable mode
+  examples:
+    - gzFile file = gzopen(filename, "wb"); assert(file != NULL); char buffer[1024]; memset(buffer, 'A', sizeof(buffer)); int bytes_written = gzwite(file, buffer, sizeof(buffer)); assert(bytes_written == sizeof(buffer));
+    - gzFile file = gzopen(filename, "rb"); assert(file != NULL); char buffer[1024]; int bytes_written = gzwite(file, buffer, sizeof(buffer)); assert(bytes_written == 0);
+
+gzfwrite:
+  description: >
+    Compress nitems items of size size from buf and write to file, otherwise operating as gzwrite() does.
+  params:
+    buf: A pointer to the buffer containing the data to be compressed and written.
+    size: The size of each item to write.
+    nitems: The number of items to write.
+    file: A pointer to a gzFile structure representing the opened file.
+  Returns:
+    The number of items written, or 0 if an error occurred.
+  example_invariants:
+    - buf must not be NULL and size*nitems must be greater than 0 before the call.
+    - file must be opened in a writable mode.
+    - will return nitems if all items are written successfully
+    - will return 0 if there is an error writing the data
+    - if overflow happens in size*nitems, it will return 0 and set the error state to Z_STREAM_ERROR
+    - will return 0 if file is opened in a non-writable mode
+  examples:
+    - int write_partial_items[3]; memset(write_partial_items, 0xEE, sizeof(write_partial_items));size_t items_written_partial = gzfwrite(write_partial_items, sizeof(int), 3, file_w); assert(items_written_partial ==3);
+    -  gzFile file = gzopen(filename, "rb"); assert(file != NULL); int write_partial_items[3]; memset(write_partial_items, 0xEE, sizeof(write_partial_items));size_t items_written_partial = gzfwrite(write_partial_items, sizeof(int), 3, file); assert(items_written_partial == 0);
+
+gzprintf:
+  description: >
+    Convert, format, compress, and write the arguments (...) to file under control of the string format, as in fprintf
+  params:
+    file: A pointer to a gzFile structure representing the opened file.
+    format: A format string, followed by a variable number of arguments.
+  Returns:
+    numbers of uncompressed bytes written, or a negative zlib error code if there is an error.
+  example_invariants:
+    - file must be opened in a writable mode.
+    - the number of uncompressed bytes written is limited to 8191
+    - if successful, the return value is the number of uncompressed bytes written
+    - will return a negative value if there is an error writing the data
+  examples:
+    - gzFile file_w = gzopen("test.gz", "wb"); const char* expected = "value is 42"; int written = gzprintf(file_w, "value is %d", 42); assert(written == (int)strlen(expected)); gzclose(file_w); remove("test.gz");
+    - gzFile file_w = gzopen("test.gz", "wb"); char long_str[9000]; memset(long_str, 'a', sizeof(long_str) - 1); long_str[sizeof(long_str) - 1] = '\0'; int written_long = gzprintf(file_w, "%s", long_str); assert(written_long == 0);
+
+gzgetc:
+  description: >
+    Push c back onto the stream for file to be read as the first character on    the next read. 
+  params:
+    c: The byte to be pushed back (must be in the range of an unsigned char or EOF).
+    file: A pointer to a gzFile structure representing the opened file.
+  Returns:
+    The character pushed back, or -1 if there is an error.
+  example_invariants:
+    - will fail if c is -1
+    - may fail if yhe character is pushed but not read yet
+    -  The pushed character will be discarded if the stream is repositioned with gzseek() or gzrewind().
+  examples:
+    - gzFile file = gzopen(filename, "rb"); assert(file != NULL); int ret = gzgetc('A', file); assert(ret == 'A');
+    - gzFile file = gzopen(filename, "wb"); assert(file != NULL); int ret = gzgetc('A', file); assert(ret == -1);
+
+gzflush:
+  description: >
+    Flush all pending output to the file.
+  params:
+    file: A pointer to a gzFile structure representing the opened file.
+    flush: The type of flush to be performed
+  Returns:
+    Z_OK: if success,
+    Z_STREAM_ERROR: if the file was not opened for writing
+    Z_ERRNO: if there is an error writing the flushed data
+    Z_MEM_ERROR: if there is a memory allocation error
+  example_invariants:
+    - file must not be NULL and it must in a writable state.
+    - will return Z_STREAM_ERROR if file is opened in a non-writable mode
+  examples:
+    - gzFile file = gzopen(filename, "wb"); assert(file != NULL); int ret = gzflush(file, Z_SYNC_FLUSH); assert(ret == Z_OK);
+    - gzFile file = gzopen(filename, "rb"); assert(file != NULL); int ret = gzflush(file, Z_SYNC_FLUSH); assert(ret == Z_STREAM_ERROR);
+
+gzseek:
+  description: >
+    Sets the starting position for the next gzread or gzwrite on the given gzFile.
+  params:
+    file: A pointer to a gzFile structure representing the opened file.
+    offset: The number of bytes to offset from origin.
+    whence: The position from where offset is added. It can be SEEK_SET, SEEK_CUR
+  Returns:
+    The resulting offset location as measured in bytes from the beginning of the uncompressed stream, or -1 if there is an error.
+  example_invariants:
+    - file must not be NULL before the call.
+    - offset must be non-negative if whence is SEEK_SET.
+    - SEEK_END is not supported and will return -1
+  example: 
+    - gzFile file_w = gzopen(filename, "wb");gzwrite(file_w, "A", 1);gzseek(file_w, 3, SEEK_CUR);gzwrite(file_w, "B", 1);gzFile file_r = gzopen(filename, "rb"); gzread(file_r, buffer, sizeof(buffer)); assert(buffer[0] == 'A' && buffer[4] == 'B');
+    -  gzwrite(file, "0123456789", 10); gzseek(file, -5, SEEK_SET); assert(ret == -1);
+  
+
+gzrewind:
+  description: >
+    Rewinds the given gzFile to the beginning of the uncompressed data.
+  params:
+    file: A pointer to a gzFile structure representing the opened file.
+  Returns:  
+    0 if success, -1 if there is an error.
+  example_invariants:
+    - file must not be NULL before the call.
+    - will return -1 if the file is not opened in a readable mode
+  examples:
+    - gzread(file_r, buffer, 1); assert(buffer[0] == 'A'); int ret = gzrewind(file_r); assert(ret == 0); gzread(file_r, buffer, 1); assert(buffer[0] == 'A');
+
+gztell:
+  description: >
+    Return the starting position for the next gzread or gzwrite on file.
+  params:
+    file: A pointer to a gzFile structure representing the opened file.
+  Returns:
+    the starting position for the next gzread or gzwrite on file. or -1 if there is an error. and is zero when starting
+  example_invariants:
+    - file must not be NULL before the call.
+    - will return -1 if there is an error
+    - will return 0 if called immediately after gzopen for reading
+  examples:
+    - assert(gztell(file_r) == 0); char buffer[5];gzread(file_r, buffer, 4); assert(gztell(file_r) == 4);
+
+gzoffset:
+  description: >
+    Return the current compressed (actual) read or write offset of file
+  params:
+    file: A pointer to a gzFile structure representing the opened file.
+  Returns:
+    the current compressed (actual) read or write offset of file, or -1 if there is an error.
+  example_invariants:
+    - file must not be NULL before the call.
+    - will return -1 if there is an error
+    - offset should bigger than 0 if zlib's flush is full filled with data or use Z_SYNC_FLUSH. If no data is flushed, offset may remain 0
+  examples:
+    - gzwrite(file, "some data to write to the file", 30);gzflush(file, Z_SYNC_FLUSH);gzflush(file, Z_SYNC_FLUSH);assert(offset > 10);
+
+gzeof:
+  description: >
+    Check if the end of the compressed file has been reached.
+  params:
+    file: A pointer to a gzFile structure representing the opened file.
+  Returns:
+    1 if the end of the file has been reached, zero otherwise.
+  example_invariants:
+    - file must not be NULL before the call.
+    - will return non-zero if the end of the file has been reached
+    - if gzread do not read any data if the end of the file has been reached, gzeof will return 1
+  examples:
+    - assert(gzeof(file_r) == 0);char buffer[100];gzread(file_r, buffer, 10); // Read all 4 bytes and try to read more. assert(gzeof(file_r) == 1);
+
+gzdirect:
+  description: >
+    Check if file is being read or written directly without any compression or decompression.
+  params:
+    file: A pointer to a gzFile structure representing the opened file.
+  Returns:
+    1 if the file is being read or written directly, zero if file is a gzip stream being decompressed..
+  example_invariants:
+    - file must not be NULL before the call.
+    - will return 1 if the file is opened in a non-compressed mode
+    - will return 0 if the file is opened in a compressed mode
+  examples:
+    - gzFile file = gzopen("test.txt", "wb"); assert(gzdirect(file) == 1); gzclose(file); remove("test.txt");
+    - gzFile file = gzopen("test.gz", "wb"); assert(gzdirect(file) == 0); gzclose(file); remove("test.gz");
+
+gzclose:
+  description: >
+    Flushes all pending output if necessary, closes the underlying file descriptor, and deallocate the (de)compression state
+  params:
+    file: A pointer to a gzFile structure representing the opened file.
+  Returns:
+    Z_OK: if success,
+    Z_ERRNO: a file operation error
+    Z_STREAM_ERROR: if the file was not valid
+    Z_MEM_ERROR: if out of memory
+    Z_BUF_ERROR: if the last read ended in the middle of a gzip stream
+  example_invariants: 
+    - file must not be NULL before the call.
+    - will return Z_STREAM_ERROR if file is NULL
+    - will return Z_ERRNO if there is an error flushing the data to the file
+    - will return Z_OK if the file is closed successfully
+  examples:
+    - gzFile file = gzopen(filename, "wb"); assert(file != NULL); int ret = gzclose(file); assert(ret == Z_OK);
+    - int ret = gzclose(NULL); assert(ret == Z_STREAM_ERROR);
+
+gzclose_r:
+  description: >
+    Flushes all pending output if necessary, closes the underlying file descriptor, and deallocate the (de)compression state only for use when reading
+  params:
+    file: A pointer to a gzFile structure representing the opened file.
+  Returns:
+    Z_OK: if success,
+    Z_ERRNO: a file operation error
+    Z_STREAM_ERROR: if the file was not valid
+    Z_MEM_ERROR: if out of memory
+    Z_BUF_ERROR: if the last read ended in the middle of a gzip stream
+  example_invariants: 
+    - file must not be NULL before the call.
+    - will return Z_STREAM_ERROR if file is NULL
+    - will return Z_ERRNO if there is an error flushing the data to the file
+    - will return Z_OK if the file is closed successfully
+    - only for use when reading
+  examples:
+    - gzFile file = gzopen(filename, "wb"); assert(file != NULL); int ret = gzclose(file); assert(ret == Z_OK);
+    - int ret = gzclose(NULL); assert(ret == Z_STREAM_ERROR);
+
+gzclose_w:
+  description: >
+    Flushes all pending output if necessary, closes the underlying file descriptor, and deallocate the (de)compression state
+  params:
+    file: A pointer to a gzFile structure representing the opened file.
+  Returns:
+    Z_OK: if success,
+    Z_ERRNO: a file operation error
+    Z_STREAM_ERROR: if the file was not valid
+    Z_MEM_ERROR: if out of memory
+    Z_BUF_ERROR: if the last read ended in the middle of a gzip stream
+  example_invariants: 
+    - file must not be NULL before the call.
+    - will return Z_STREAM_ERROR if file is NULL
+    - will return Z_ERRNO if there is an error flushing the data to the file
+    - will return Z_OK if the file is closed successfully
+    - only for use when writing or appending
+  examples:
+    - gzFile file = gzopen(filename, "wb"); assert(file != NULL); int ret = gzclose(file); assert(ret == Z_OK);
+    - int ret = gzclose(NULL); assert(ret == Z_STREAM_ERROR);
+
+gzerror:
+  description: >
+    Returns the error code and error message for the given gzFile.
+  params:
+    file: A pointer to a gzFile structure representing the opened file.
+    errnum: A pointer to an integer where the error code will be stored.
+  Returns:
+    A string containing the error message, or NULL if there is no error.
+  example_invariants:
+    - file must not be NULL before the call.
+    - errnum must not be NULL before the call.
+    - will return NULL if there is no error
+  examples:
+    - gzFile file = gzopen(filename, "rb"); assert(file != NULL); int errnum; const char* err_msg = gzerror(file, &errnum); assert(err_msg != NULL);
+    - gzFile file = gzopen(NULL, "rb"); int errnum; const char* err_msg = gzerror(file, &errnum); assert(err_msg == NULL);
+
+gzclearerr:
+  description: >
+    Clears the error and end-of-file indicators for the given gzFile.
+  params:
+    file: A pointer to a gzFile structure representing the opened file.
+  Returns:
+    None.
+  example_invariants:
+    - file must not be NULL before the call.
+    - will not return any value, it just clears the error state
+    - use after gzeof Returns true, gzclearerr will reset the end-of-file state and gzeof will return false
+  examples:
+    - assert(gzeof(file_r) == 1); gzclearerr(file_r); assert(gzeof(file_r) == 0);
+
+adler32:
+  description: >
+    Computes the Adler-32 checksum of a data stream.
+  params:
+    adler: The initial adler32 value (or 1 for the first call).
+    buf: A pointer to the buffer containing the data.
+    len: The length of the data in bytes.
+  Returns:
+    The updated Adler-32 checksum.
+  example_invariants:
+    - adler should be the result of a previous call to adler32 or 1 for the first call.
+    - buf must not be NULL if len is greater than 0.
+    - will return 1 if buf is NULL and len is 0
+    - will return the same adler value if len is 0 and buf is not NULL
+    - the answer is the same if called multiple times with the same data and initial adler value
+    - will not change the number use a zero-length buffer
+  examples:
+    - uLong adler = adler32(1L, Z_NULL, 0); assert(adler == 1L);
+    - const char* data = "Hello, World!"; uLong adler = adler32(1L, (const Bytef*)data, strlen(data)); assert(adler != 1L);
+    -  uLong adler_initial = adler32(adler32(0L, Z_NULL, 0), (const Bytef*)data, strlen(data));  uLong adler_after_empty = adler32(adler_initial, (const Bytef*)"some data", 0); assert(adler_initial == adler_after_empty);
+
+adler32_z:
+  description: >
+    Computes the Adler-32 checksum of a data stream.
+  params:
+    adler: The initial adler32 value (or 1 for the first call).
+    buf: A pointer to the buffer containing the data.
+    len: The length of the data with a type of z_size_t.
+  Returns:
+    The updated Adler-32 checksum.
+  example_invariants:
+    - adler should be the result of a previous call to adler32 or 1 for the first call.
+    - buf must not be NULL if len is greater than 0.
+    - will return 1 if buf is NULL and len is 0
+    - will return the same adler value if len is 0
+    - the answer is the same if called multiple times with the same data and initial adler value
+    - will not change the number use a zero-length buffer
+  examples:
+    - uLong adler = adler32(1L, Z_NULL, 0); assert(adler == 1L);
+    - const char* data = "Hello, World!"; uLong adler = adler32(1L, (const Bytef*)data, strlen(data)); assert(adler != 1L);
+    -  uLong adler_initial = adler32(adler32(0L, Z_NULL, 0), (const Bytef*)data, strlen(data));  uLong adler_after_empty = adler32(adler_initial, (const Bytef*)"", 0); assert(adler_initial == adler_after_empty);
+
+adler32_combine:
+  description: >
+    Combines two Adler-32 checksums into one.
+  params:
+    adler1: The first Adler-32 checksum.
+    adler2: The second Adler-32 checksum.
+    len2: The length of the data corresponding to adler2 in bytes.
+  Returns:
+    The combined Adler-32 checksum.
+  example_invariants:
+    - adler1 and adler2 should be valid Adler-32 checksums.
+    - len2 can be non-negative, if it is negative, the behavior is undefined.
+    - will return adler1 if len2 is 0 and adler2 is 1
+    - will return adler2 if adler1 is 1 and len2 is the length of the data used to compute adler2
+    - will not change the number use a zero-length buffer
+    - the answer is the same at the value of begin value 1 if calculated in parts or all at once 
+  examples:
+    - uLong adler1 = adler32(1L, (const Bytef*)"Hello, ", 7); uLong adler2 = adler32(1L, (const Bytef*)"World!", 6); uLong combined = adler32_combine(adler1, adler2, 6); uLong expected = adler32(1L, (const Bytef*)"Hello, World!", 13); assert(combined == expected);
+    - uLong adler1 = adler32(1L, (const Bytef*)"Hello", 5); uLong combined = adler32_combine(adler1, 1L, 0); assert(combined == adler1);
+    - uLong adler1 = adler32(adler32(1L, Z_NULL, 0), (const Bytef*)seq1, strlen(seq1));  uLong adler2 = adler32(adler32(1L, Z_NULL, 0), (const Bytef*)seq2, strlen(seq2)); z_off_t len2 = strlen(seq2); uLong combined_adler = adler32_combine(adler1, adler2, len2);uLong direct_adler = adler32(adler32(1L, Z_NULL, 0), (const Bytef*)combined_seq, strlen(combined_seq)); assert(combined_adler == direct_adler);
+
+crc32:
+  description: >
+    Computes the CRC-32 checksum of a data stream.
+  params:
+    crc: The initial CRC-32 value (or 0 for the first call).
+    buf: A pointer to the buffer containing the data.
+    len: The length of the data in bytes.
+  Returns:
+    The updated CRC-32 checksum.
+  example_invariants:
+    - crc should be the result of a previous call to crc32 or 0 for the first call.
+    - buf must not be NULL if len is greater than 0.
+    - will return 0 if buf is NULL and len is 0
+    - will return the same crc value if len is 0
+    - the answer is the same if called multiple times with the same data and initial crc value
+    - will not change the number use a zero-length buffer
+  examples:
+    - uLong crc = crc32(0L, Z_NULL, 0); assert(crc == 0L);
+    - const char* data = "Hello, World!"; uLong crc = crc32(0L, (const Bytef*)data, strlen(data)); assert(crc != 0L);
+    -  uLong crc_initial = crc32(crc32(0L, Z_NULL, 0), (const Bytef*)data, strlen(data));  uLong crc_after_empty = crc32(crc_initial, (const Bytef*)"", 0); assert(crc_initial == crc_after_empty);
+
+crc32_z:
+  description: >
+    Computes the CRC-32 checksum of a data stream.
+  params:
+    crc: The initial CRC-32 value (or 0 for the first call).
+    buf: A pointer to the buffer containing the data.
+    len: The length of the data in bytes with a type of z_size_t.
+  Returns:
+    The updated CRC-32 checksum.
+  example_invariants:
+    - crc should be the result of a previous call to crc32 or 0 for the first call.
+    - buf must not be NULL if len is greater than 0.
+    - will return 0 if buf is NULL and len is 0
+    - will return the same crc value if len is 0
+    - the answer is the same if called multiple times with the same data and initial crc value
+    - will not change the number use a zero-length buffer
+  examples:
+    - uLong crc = crc32(0L, Z_NULL, 0); assert(crc == 0L);
+    - const char* data = "Hello, World!"; uLong crc = crc32(0L, (const Bytef*)data, strlen(data)); assert(crc != 0L);
+    -  uLong crc_initial = crc32(crc32(0L, Z_NULL, 0), (const Bytef*)data, strlen(data));  uLong crc_after_empty = crc32(crc_initial, (const Bytef*)"", 0); assert(crc_initial == crc_after_empty);
+
+crc32_combine:
+  description: >
+    Combines two CRC-32 checksums into one.
+  params:
+    crc1: The first CRC-32 checksum.
+    crc2: The second CRC-32 checksum.
+    len2: The length of the data corresponding to crc2 in bytes.
+  Returns:  
+    The combined CRC-32 checksum.
+  example_invariants:
+    - crc1 and crc2 should be valid CRC-32 checksums.
+    - len2 must be non-negative.
+    - will return crc1 if len2 is 0
+    - will return crc2 if crc1 is 0 and len2 is the length of the data used to compute crc2
+    - will not change the number use a zero-length buffer
+    - the answer is the same if calculated in parts or all at once
+  examples:
+    - uLong crc1 = crc32(0L, (const Bytef*)"Hello ", 6);  uLong crc2 = crc32(0L, (const Bytef*)"World!", 6); uLong combined = crc32_combine(crc1, crc2, 6);   uLong expected = crc32(0L, (const Bytef*)"Hello World!", 12);  assert(combined == expected);
+
+crc32_combine_gen:
+  description: >
+    Return the operator corresponding to length len2,
+  params:
+    len2: The length of the data in bytes.
+  Returns:  
+    A pointer to a 32-bit integer array representing the operator.
+  example_invariants:
+    - len2 must be non-negative.
+    - will return NULL if len2 is negative
+
+crc32_combine_op:
+  description:
+    Apply the operator op to two CRC-32 checksums crc1 and crc2.
+  params:
+    crc1: The first CRC-32 checksum. 
+    crc2: The second CRC-32 checksum.
+    op: A pointer to a 32-bit integer array representing the operator.
+  Returns:  
+    The combined CRC-32 checksum.
+  example_invariants:
+    - op must be a valid operator generated by crc32_combine_gen.
+    - will return crc1 if op is NULL
+    - will return crc2 if crc1 is 0 and op is the operator for the
+    - will not change the number use a zero-length buffer
+    - the answer is the same as crc32_combine if op is generated by crc32_combine_gen with the same len2
+  examples:
+    - uLong crc1 = crc32(crc32(0L, Z_NULL, 0), (const Bytef*)seq1, strlen(seq1));uLong crc2 = crc32(crc32(0L, Z_NULL, 0), (const Bytef*)seq2, strlen(seq2)); uLong combined_crc_standard = crc32_combine(crc1, crc2, len2); uLong op = crc32_combine_gen(len2);uLong combined_crc_optimized = crc32_combine_op(crc1, crc2, op);assert(combined_crc_standard == combined_crc_optimized);  
+
+
+inflateResetKeep:
+  description: >
+    Resets the internal stream state for decompression. This function is similar to performing an inflateEnd followed by an inflateInit, but it does not free and reallocate the internal decompression state. This is useful for efficiency when decompressing multiple streams in a row, as it preserves the memory allocations and settings like the window size.
+  params:
+    strm: A pointer to a z_stream structure that holds the state of the decompression.
+  Returns:
+    Z_OK: if success.
+    Z_STREAM_ERROR: if the stream state is inconsistent (e.g., strm is NULL or not initialized).
+  example_invariants:
+    - strm must not be NULL.
+    - strm must have been successfully initialized by inflateInit or inflateInit2 prior to this call.
+    - The internal state, including memory allocations, is preserved across the reset.
+    - The window size set by inflateInit2 is kept.
+    - total_in, total_out, and adler are reset to their initial values.
+    - zalloc, zfree, and opaque fields are left unchanged.
+    - adler is reset to 1 if it is zlib, or 0 if it is gzip.
+  examples:
+    - z_stream strm; strm.zalloc = Z_NULL; strm.zfree = Z_NULL; strm.opaque = Z_NULL; int ret_init = inflateInit(&strm); assert(ret_init == Z_OK); int ret_reset = inflateResetKeep(&strm); assert(ret_reset == Z_OK);
+    - int ret = inflateResetKeep(NULL); assert(ret == Z_STREAM_ERROR);
+    - z_stream strm; strm.zalloc = Z_NULL; strm.zfree = Z_NULL; strm.opaque = Z_NULL; inflateInit(&strm); strm.total_in = 100; strm.total_out = 200; inflateResetKeep(&strm); assert(strm.total_in == 0 && strm.total_out == 0);

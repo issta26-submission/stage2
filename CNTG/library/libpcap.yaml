@@ -1,0 +1,696 @@
+pcap_activate:
+  description: >
+    Activates a packet capture handle, transitioning it from the configuration state to the ready state.
+    Must be called after setting options like snaplen, timeout, and promiscuous mode.
+    Performs driver initialization and prepares the network interface for packet capture.
+  params:
+    p: Pointer to pcap_t handle created with pcap_create
+  Returns:
+    0: if success,
+    PCAP_ERROR: if underlying interface error occurred,
+    PCAP_ERROR_ACTIVATED: if the handle is already activated,
+    PCAP_ERROR_NO_SUCH_DEVICE: if the interface does not exist
+  example_invariants:
+    - Must be called after pcap_create and before pcap_next_ex or pcap_loop
+    - Cannot be called multiple times on same handle without closing
+    - Interface must exist and be accessible on the system
+  examples:
+    - (pcap_t *p = pcap_create("eth0", errbuf), p != NULL && pcap_activate(p) == 0)
+    - (pcap_t *p = pcap_create("wlan0", errbuf), p != NULL && pcap_activate(p) != PCAP_ERROR_ACTIVATED)
+
+pcap_alloc_option:
+  description: >
+    Allocates and initializes a pcap_option structure for use with pcap_set_option_int or pcap_set_option_string.
+    Used in advanced capture scenarios to set vendor-specific or experimental options on capture handles.
+  params:
+    optname: Name of the option as string like "timeout" or "buffer_size"
+  Returns:
+    pointer to newly allocated pcap_option structure: if success,
+    NULL: if allocation fails or option name is invalid
+  example_invariants:
+    - Must be freed with pcap_free_option when no longer needed
+    - Option must exist in the system's libpcap implementation
+    - Caller is responsible for memory deallocation
+  examples:
+    - (pcap_option *opt = pcap_alloc_option("buffer_size"), opt != NULL)
+    - (pcap_option *opt = pcap_alloc_option("read_timeout"), opt != NULL)
+
+pcap_can_set_rfmon:
+  description: >
+    Checks whether the network interface supports monitor mode (rfmon) for wireless packet capture.
+    Must be called after creating a pcap handle but before activation.
+    Allows checking capabilities without attempting to set the mode.
+  params:
+    p: Pointer to pcap_t handle created with pcap_create and not yet activated
+  Returns:
+    0: if monitor mode is not supported,
+    1: if monitor mode is supported and can be enabled,
+    PCAP_ERROR: if error occurred such as interface error or handle already activated
+  example_invariants:
+    - Must be called on non-activated handle before pcap_activate
+    - Only applicable to wireless network interfaces
+    - Wired interfaces will return 0
+  examples:
+    - (pcap_t *p = pcap_create("wlan0", errbuf), p != NULL && pcap_can_set_rfmon(p) >= 0)
+    - (pcap_t *p = pcap_create("eth0", errbuf), p != NULL && pcap_can_set_rfmon(p) != 1)
+
+pcap_close:
+  description: >
+    Closes a packet capture handle and releases all associated resources.
+    Must be called when finished with packet capture to clean up allocated memory, close file descriptors, and reset hardware.
+    Safe to call multiple times on same handle.
+  params:
+    p: Pointer to pcap_t handle previously created with pcap_create or pcap_open_live
+  Returns:
+    nothing: this is a void function with no return value
+  example_invariants:
+    - All packets and filter structures associated with handle become invalid after close
+    - pcap_next_ex and pcap_loop will fail if called on closed handle
+    - No further operations possible on closed handle
+  examples:
+    - (pcap_t *p = pcap_create("eth0", errbuf), p != NULL && (pcap_close(p), 1))
+    - (pcap_t *p = pcap_open_live("wlan0", 65535, 1, 1000, errbuf), p != NULL && (pcap_close(p), 1))
+
+pcap_compile:
+  description: >
+    Compiles a packet filter expression string into a filter program that can be applied to packet captures.
+    Parses BPF (Berkeley Packet Filter) syntax and optimizes the filter program for efficient matching.
+    Used with pcap_setfilter to filter captured packets.
+  params:
+    p: Pointer to pcap_t handle from pcap_create or pcap_open_live
+    fp: Pointer to bpf_program structure to be filled with compiled filter
+    str: Filter expression string like "tcp port 80" or "src 192.168.1.1"
+    optimize: If 1 optimize filter for speed, if 0 do not optimize
+    netmask: Network mask for subnet matching usually PCAP_NETMASK_UNKNOWN
+  Returns:
+    0: if successful compilation,
+    -1: if error occurred such as invalid filter syntax or parsing error
+  example_invariants:
+    - Compiled filter must be freed with pcap_freecode when no longer needed
+    - Filter expression syntax follows BPF standard as in man pcap-filter
+    - bpf_program structure must be allocated before calling
+  examples:
+    - (pcap != NULL && pcap_compile(pcap, &fp, "tcp port 80", 1, PCAP_NETMASK_UNKNOWN) == 0)
+    - (pcap != NULL && pcap_compile(pcap, &fp, "ip and (tcp or udp)", 1, PCAP_NETMASK_UNKNOWN) == 0)
+
+pcap_create:
+  description: >
+    Creates a new packet capture handle for a specified network interface.
+    Returns the handle in a configuration state where options can be set before activation.
+    This is the first step in setting up live packet capture with full control over options.
+  params:
+    source: Network interface name such as "eth0" or "wlan0" or "lo"
+    errbuf: Pointer to char array at least PCAP_ERRBUF_SIZE bytes for error messages
+  Returns:
+    pointer to newly allocated pcap_t handle: if success,
+    NULL: if interface does not exist or allocation fails
+  example_invariants:
+    - Returned handle must be freed with pcap_close when no longer needed
+    - Handle is in configuration state until pcap_activate is called
+    - Cannot start packet capture until pcap_activate is called
+  examples:
+    - (pcap_t *p = pcap_create("eth0", errbuf), p != NULL)
+    - (pcap_t *p = pcap_create("wlan0", errbuf), p != NULL)
+
+pcap_datalink:
+  description: >
+    Returns the data link type of the interface used by the packet capture handle.
+    Data link type identifies the format of packet headers such as Ethernet or PPP.
+    Needed to correctly parse packet data from pcap_next_ex or pcap_loop callbacks.
+  params:
+    p: Pointer to pcap_t handle that must be activated
+  Returns:
+    integer data link type constant: such as DLT_EN10MB for Ethernet or DLT_PPP for PPP if success,
+    PCAP_ERROR: if handle is not activated or invalid
+  example_invariants:
+    - Must be called on activated handle after pcap_activate succeeds
+    - Return value is a DLT_* constant from pcap.h
+    - Different interfaces may have different data link types
+  examples:
+    - (pcap != NULL && pcap_datalink(pcap) != PCAP_ERROR)
+    - (pcap != NULL && pcap_datalink(pcap) == DLT_EN10MB)
+
+pcap_dump:
+  description: >
+    Writes a packet record to a savefile opened by pcap_dump_open.
+    The packet header and packet data are written in libpcap savefile format.
+    Typically used inside a pcap_loop or pcap_dispatch callback.
+  params:
+    user: User-supplied pointer passed to callback, usually cast to pcap_dumper_t*
+    h: Pointer to pcap_pkthdr describing captured packet
+    sp: Pointer to captured packet data buffer
+  Returns:
+    nothing: this is a void function with no return value
+  example_invariants:
+    - dumper must be a valid pcap_dumper_t opened by pcap_dump_open
+    - h and sp must describe a valid captured packet
+    - Packet data length should match h->caplen
+  examples:
+    - (dumper != NULL && h != NULL && sp != NULL, pcap_dump((u_char *)dumper, h, sp))
+    - (dumper != NULL && h != NULL && sp != NULL, pcap_dump((u_char *)dumper, h, sp))
+
+pcap_dump_close:
+  description: >
+    Closes a savefile opened by pcap_dump_open and flushes any buffered output.
+    After this call, the pcap_dumper_t handle is invalid.
+    Used to finish writing capture data to disk.
+  params:
+    p: Pointer to pcap_dumper_t handle returned by pcap_dump_open
+  Returns:
+    nothing: this is a void function with no return value
+  example_invariants:
+    - p must be a valid pcap_dumper_t opened by pcap_dump_open
+    - After close, p must not be used again
+    - Closing flushes any buffered data
+  examples:
+    - (dumper != NULL && (pcap_dump_close(dumper), 1))
+    - (dumper != NULL && (pcap_dump_close(dumper), 1))
+
+pcap_dump_flush:
+  description: >
+    Flushes buffered savefile output to disk for a dumper opened by pcap_dump_open.
+    Useful to ensure data is written without closing the file.
+    Errors are reported via return value.
+  params:
+    p: Pointer to pcap_dumper_t handle returned by pcap_dump_open
+  Returns:
+    0: if success,
+    -1: if an error occurred while flushing
+  example_invariants:
+    - p must be a valid pcap_dumper_t opened by pcap_dump_open
+    - Flush does not close the dumper
+    - Subsequent writes are still allowed after a successful flush
+  examples:
+    - (dumper != NULL && pcap_dump_flush(dumper) == 0)
+    - (dumper != NULL && pcap_dump_flush(dumper) != -1)
+
+pcap_dump_open:
+  description: >
+    Opens a savefile for writing captured packets associated with a pcap_t handle.
+    The returned dumper is used with pcap_dump to write packets.
+    The file is created or truncated if it exists.
+  params:
+    p: Pointer to activated pcap_t handle
+    fname: Output file path for the savefile
+  Returns:
+    pointer to pcap_dumper_t: if success,
+    NULL: if the file cannot be opened or the handle is invalid
+  example_invariants:
+    - p should be activated and have a defined link-layer type
+    - fname must be a valid writable path
+    - Returned dumper must be closed with pcap_dump_close
+  examples:
+    - (pcap != NULL && (dumper = pcap_dump_open(pcap, "out.pcap"), dumper != NULL))
+    - (pcap != NULL && (dumper = pcap_dump_open(pcap, "capture.pcap"), dumper != NULL))
+
+pcap_free_option:
+  description: >
+    Frees a pcap_option structure previously allocated by pcap_alloc_option.
+    Releases any memory associated with the option.
+    Safe to call with a NULL pointer.
+  params:
+    opt: Pointer to pcap_option structure to free
+  Returns:
+    nothing: this is a void function with no return value
+  example_invariants:
+    - opt must be a pointer returned by pcap_alloc_option or NULL
+    - After free, opt must not be used again
+    - Freeing NULL is safe and has no effect
+  examples:
+    - (opt = pcap_alloc_option("buffer_size"), pcap_free_option(opt))
+    - (opt = NULL, pcap_free_option(opt))
+
+pcap_freecode:
+  description: >
+    Frees a compiled filter program created by pcap_compile.
+    Releases internal memory used by the bpf_program.
+    Should be called when the filter is no longer needed.
+  params:
+    fp: Pointer to bpf_program structure to free
+  Returns:
+    nothing: this is a void function with no return value
+  example_invariants:
+    - fp must reference a program produced by pcap_compile
+    - After free, fp should not be used for filtering
+    - Freeing without a successful compile is undefined
+  examples:
+    - (pcap != NULL && pcap_compile(pcap, &fp, "tcp", 1, PCAP_NETMASK_UNKNOWN) == 0 && (pcap_freecode(&fp), 1))
+    - (pcap != NULL && pcap_compile(pcap, &fp, "udp", 1, PCAP_NETMASK_UNKNOWN) == 0 && (pcap_freecode(&fp), 1))
+
+pcap_geterr:
+  description: >
+    Returns the error text for the last error on a pcap_t handle.
+    The returned string is managed by libpcap and is valid until the next error on the handle.
+    Useful after a function returns PCAP_ERROR or -1.
+  params:
+    p: Pointer to pcap_t handle
+  Returns:
+    pointer to a null-terminated error message string
+  example_invariants:
+    - p must be a valid pcap_t handle
+    - Returned pointer must not be freed by the caller
+    - Message may change after subsequent libpcap calls on the handle
+  examples:
+    - (pcap != NULL && pcap_geterr(pcap) != NULL)
+    - (pcap != NULL && pcap_geterr(pcap)[0] != '\0')
+
+pcap_lib_version:
+  description: >
+    Returns a string describing the libpcap version and build information.
+    The returned string is a static constant owned by the library.
+    Useful for diagnostics and logging.
+  params: {}
+  Returns:
+    pointer to a null-terminated version string
+  example_invariants:
+    - Returned string is not NULL
+    - Returned string is a valid null-terminated C string
+    - Returned pointer must not be freed by the caller
+  examples:
+    - pcap_lib_version() != NULL
+    - pcap_lib_version()[0] != '\0'
+
+pcap_lookupdev:
+  description: >
+    Returns a default network device suitable for packet capture.
+    The device name is placed in a static buffer managed by libpcap.
+    Deprecated in newer libpcap in favor of pcap_findalldevs.
+  params:
+    errbuf: Pointer to error buffer of size PCAP_ERRBUF_SIZE
+  Returns:
+    pointer to a device name string if success,
+    NULL if no device is found or an error occurs
+  example_invariants:
+    - errbuf must be at least PCAP_ERRBUF_SIZE bytes
+    - Returned pointer must not be freed by the caller
+    - If return is NULL, errbuf contains an error message
+  examples:
+    - (pcap_lookupdev(errbuf) != NULL)
+    - (pcap_lookupdev(errbuf) == NULL || errbuf[0] != '\0')
+
+pcap_lookupnet:
+  description: >
+    Returns the IPv4 network number and netmask for a device.
+    Useful for compiling filters with pcap_compile.
+    Results are returned via output parameters.
+  params:
+    device: Name of the interface
+    netp: Pointer to bpf_u_int32 to receive network number
+    maskp: Pointer to bpf_u_int32 to receive netmask
+    errbuf: Pointer to error buffer of size PCAP_ERRBUF_SIZE
+  Returns:
+    0: if success,
+    -1: if an error occurs
+  example_invariants:
+    - device must be a valid interface name
+    - netp and maskp must be non-NULL
+    - If return is -1, errbuf contains an error message
+  examples:
+    - (pcap_lookupnet("eth0", &net, &mask, errbuf) == 0)
+    - (pcap_lookupnet("lo", &net, &mask, errbuf) == 0 || errbuf[0] != '\0')
+
+pcap_offline_filter:
+  description: >
+    Applies a compiled BPF filter to a packet header and data buffer.
+    This is a purely offline operation and does not require a live capture handle.
+    Returns whether the packet matches the filter.
+  params:
+    fp: Pointer to compiled bpf_program
+    h: Pointer to pcap_pkthdr describing the packet
+    pkt: Pointer to the packet data
+  Returns:
+    non-zero: if the packet matches the filter,
+    0: if the packet does not match
+  example_invariants:
+    - fp must be a valid compiled filter program
+    - h and pkt must describe a valid packet buffer
+    - The function does not modify the packet data
+  examples:
+    - (pcap_offline_filter(&fp, &hdr, pkt) != 0)
+    - (pcap_offline_filter(&fp, &hdr, pkt) == 0 || pcap_offline_filter(&fp, &hdr, pkt) != 0)
+
+pcap_option_name:
+  description: >
+    Returns the canonical name string for a given pcap option code.
+    Used to query supported options and to provide user-readable names.
+    Returned pointer is managed by libpcap.
+  params:
+    opt: Option code value
+  Returns:
+    pointer to option name string if known,
+    NULL if the option code is not recognized
+  example_invariants:
+    - Returned pointer must not be freed by the caller
+    - Unknown option codes return NULL
+    - Returned string is null-terminated if not NULL
+  examples:
+    - (pcap_option_name(opt) != NULL)
+    - (pcap_option_name(-1) == NULL)
+
+pcap_options:
+  description: >
+    Returns a list of supported options for a given pcap_t handle.
+    The returned array is NULL-terminated and managed by libpcap.
+    Useful for discovering available configuration options.
+  params:
+    p: Pointer to pcap_t handle
+  Returns:
+    pointer to a NULL-terminated array of pcap_option pointers,
+    NULL if options are not available or on error
+  example_invariants:
+    - p must be a valid pcap_t handle
+    - Returned list is managed by libpcap and must not be freed
+    - The list is NULL-terminated when non-NULL
+  examples:
+    - (pcap != NULL && pcap_options(pcap) != NULL)
+    - (pcap != NULL && (pcap_options(pcap) == NULL || pcap_options(pcap)[0] != NULL))
+
+pcap_perror:
+  description: >
+    Prints the last error associated with a pcap_t handle to stderr.
+    The message is prefixed by the supplied string.
+    This is a convenience wrapper around pcap_geterr.
+  params:
+    p: Pointer to pcap_t handle
+    prefix: Message prefix string printed before the error text
+  Returns:
+    nothing: this is a void function with no return value
+  example_invariants:
+    - p must be a valid pcap_t handle
+    - prefix may be NULL or a valid string depending on implementation
+    - Error text comes from the last error on the handle
+  examples:
+    - (pcap != NULL && (pcap_perror(pcap, "pcap"), 1))
+    - (pcap != NULL && (pcap_perror(pcap, "error"), 1))
+
+pcap_pkthdr:
+  description: >
+    Represents a packet header describing captured packet metadata.
+    Includes timestamp, captured length, and original length.
+    Used with callbacks and offline filtering.
+  params: {}
+  Returns:
+    a structure type with fields ts, caplen, and len
+  example_invariants:
+    - caplen must be less than or equal to len
+    - ts represents the capture timestamp
+    - len represents the original packet length on the wire
+  examples:
+    - (hdr.caplen <= hdr.len)
+    - (hdr.len >= 0 && hdr.caplen >= 0)
+
+pcap_set_buffer_size:
+  description: >
+    Sets the buffer size for a capture handle before activation.
+    Larger buffers reduce packet drops under high load.
+    Must be called before pcap_activate.
+  params:
+    p: Pointer to pcap_t handle
+    buffer_size: Buffer size in bytes
+  Returns:
+    0: if success,
+    PCAP_ERROR_ACTIVATED: if the handle is already activated,
+    PCAP_ERROR: if an error occurs
+  example_invariants:
+    - Must be called before pcap_activate
+    - buffer_size should be positive
+    - Return PCAP_ERROR_ACTIVATED if already activated
+  examples:
+    - (pcap != NULL && pcap_set_buffer_size(pcap, 1 << 20) == 0)
+    - (pcap != NULL && pcap_set_buffer_size(pcap, 4096) != PCAP_ERROR_ACTIVATED)
+
+pcap_set_immediate_mode:
+  description: >
+    Enables or disables immediate mode on a capture handle.
+    In immediate mode, packets are delivered as soon as they arrive.
+    Must be called before pcap_activate.
+  params:
+    p: Pointer to pcap_t handle
+    immediate: 1 to enable immediate mode, 0 to disable
+  Returns:
+    0: if success,
+    PCAP_ERROR_ACTIVATED: if the handle is already activated,
+    PCAP_ERROR: if an error occurs
+  example_invariants:
+    - Must be called before pcap_activate
+    - immediate must be 0 or 1
+    - Return PCAP_ERROR_ACTIVATED if already activated
+  examples:
+    - (pcap != NULL && pcap_set_immediate_mode(pcap, 1) == 0)
+    - (pcap != NULL && pcap_set_immediate_mode(pcap, 0) != PCAP_ERROR_ACTIVATED)
+
+pcap_set_option_int:
+  description: >
+    Sets an integer-valued option on a capture handle using a pcap_option descriptor.
+    The option must be allocated with pcap_alloc_option and supported by the handle.
+    Must be called before pcap_activate for most options.
+  params:
+    p: Pointer to pcap_t handle
+    opt: Pointer to pcap_option descriptor
+    value: Integer value to set
+  Returns:
+    0: if success,
+    PCAP_ERROR_ACTIVATED: if the handle is already activated,
+    PCAP_ERROR: if an error occurs
+  example_invariants:
+    - opt must be a valid option descriptor
+    - Must be called before pcap_activate for activation-time options
+    - Return PCAP_ERROR_ACTIVATED if already activated
+  examples:
+    - (pcap != NULL && (opt = pcap_alloc_option("buffer_size"), opt != NULL) && pcap_set_option_int(pcap, opt, 1 << 20) == 0)
+    - (pcap != NULL && (opt = pcap_alloc_option("timeout"), opt != NULL) && pcap_set_option_int(pcap, opt, 1000) != PCAP_ERROR_ACTIVATED)
+
+pcap_set_option_string:
+  description: >
+    Sets a string-valued option on a capture handle using a pcap_option descriptor.
+    The option must be allocated with pcap_alloc_option and supported by the handle.
+    Must be called before pcap_activate for most options.
+  params:
+    p: Pointer to pcap_t handle
+    opt: Pointer to pcap_option descriptor
+    value: String value to set
+  Returns:
+    0: if success,
+    PCAP_ERROR_ACTIVATED: if the handle is already activated,
+    PCAP_ERROR: if an error occurs
+  example_invariants:
+    - opt must be a valid option descriptor
+    - value must be a valid null-terminated string
+    - Return PCAP_ERROR_ACTIVATED if already activated
+  examples:
+    - (pcap != NULL && (opt = pcap_alloc_option("rfmon"), opt != NULL) && pcap_set_option_string(pcap, opt, "1") == 0)
+    - (pcap != NULL && (opt = pcap_alloc_option("device"), opt != NULL) && pcap_set_option_string(pcap, opt, "eth0") != PCAP_ERROR_ACTIVATED)
+
+pcap_set_promisc:
+  description: >
+    Sets promiscuous mode on a capture handle before activation.
+    When enabled, the interface captures all packets on the network segment.
+    Must be called before pcap_activate.
+  params:
+    p: Pointer to pcap_t handle
+    promisc: 1 to enable promiscuous mode, 0 to disable
+  Returns:
+    0: if success,
+    PCAP_ERROR_ACTIVATED: if the handle is already activated,
+    PCAP_ERROR: if an error occurs
+  example_invariants:
+    - Must be called before pcap_activate
+    - promisc must be 0 or 1
+    - Return PCAP_ERROR_ACTIVATED if already activated
+  examples:
+    - (pcap != NULL && pcap_set_promisc(pcap, 1) == 0)
+    - (pcap != NULL && pcap_set_promisc(pcap, 0) != PCAP_ERROR_ACTIVATED)
+
+pcap_set_protocol_linux:
+  description: >
+    Sets the capture protocol on Linux for a capture handle before activation.
+    This can restrict the capture to a specific link-layer protocol.
+    Must be called before pcap_activate.
+  params:
+    p: Pointer to pcap_t handle
+    protocol: Protocol value (e.g., ETH_P_ALL for all protocols)
+  Returns:
+    0: if success,
+    PCAP_ERROR_ACTIVATED: if the handle is already activated,
+    PCAP_ERROR: if an error occurs
+  example_invariants:
+    - Must be called before pcap_activate
+    - protocol must be a valid Linux socket protocol value
+    - Return PCAP_ERROR_ACTIVATED if already activated
+  examples:
+    - (pcap != NULL && pcap_set_protocol_linux(pcap, 0x0003) == 0)
+    - (pcap != NULL && pcap_set_protocol_linux(pcap, 0x0003) != PCAP_ERROR_ACTIVATED)
+
+pcap_set_rfmon:
+  description: >
+    Requests monitor mode (rfmon) on a wireless interface before activation.
+    Monitor mode enables capture of 802.11 frames.
+    Must be called before pcap_activate.
+  params:
+    p: Pointer to pcap_t handle
+    rfmon: 1 to enable monitor mode, 0 to disable
+  Returns:
+    0: if success,
+    PCAP_ERROR_ACTIVATED: if the handle is already activated,
+    PCAP_ERROR: if an error occurs or monitor mode is not supported
+  example_invariants:
+    - Must be called before pcap_activate
+    - rfmon must be 0 or 1
+    - If monitor mode is not supported, return PCAP_ERROR
+  examples:
+    - (pcap != NULL && pcap_set_rfmon(pcap, 1) == 0)
+    - (pcap != NULL && pcap_set_rfmon(pcap, 0) != PCAP_ERROR_ACTIVATED)
+
+pcap_set_snaplen:
+  description: >
+    Sets the snapshot length for captured packets before activation.
+    Snaplen limits the number of bytes captured per packet.
+    Must be called before pcap_activate.
+  params:
+    p: Pointer to pcap_t handle
+    snaplen: Snapshot length in bytes
+  Returns:
+    0: if success,
+    PCAP_ERROR_ACTIVATED: if the handle is already activated,
+    PCAP_ERROR: if an error occurs
+  example_invariants:
+    - Must be called before pcap_activate
+    - snaplen should be positive
+    - Return PCAP_ERROR_ACTIVATED if already activated
+  examples:
+    - (pcap != NULL && pcap_set_snaplen(pcap, 65535) == 0)
+    - (pcap != NULL && pcap_set_snaplen(pcap, 96) != PCAP_ERROR_ACTIVATED)
+
+pcap_set_timeout:
+  description: >
+    Sets the read timeout for a capture handle before activation.
+    The timeout controls how long the capture waits for packets.
+    Must be called before pcap_activate.
+  params:
+    p: Pointer to pcap_t handle
+    to_ms: Timeout in milliseconds
+  Returns:
+    0: if success,
+    PCAP_ERROR_ACTIVATED: if the handle is already activated,
+    PCAP_ERROR: if an error occurs
+  example_invariants:
+    - Must be called before pcap_activate
+    - to_ms should be non-negative
+    - Return PCAP_ERROR_ACTIVATED if already activated
+  examples:
+    - (pcap != NULL && pcap_set_timeout(pcap, 1000) == 0)
+    - (pcap != NULL && pcap_set_timeout(pcap, 0) != PCAP_ERROR_ACTIVATED)
+
+pcap_set_tstamp_precision:
+  description: >
+    Sets the time stamp precision for a capture handle before activation.
+    The precision is usually microseconds or nanoseconds.
+    Must be called before pcap_activate.
+  params:
+    p: Pointer to pcap_t handle
+    precision: Time stamp precision value (PCAP_TSTAMP_PRECISION_MICRO or PCAP_TSTAMP_PRECISION_NANO)
+  Returns:
+    0: if success,
+    PCAP_ERROR_ACTIVATED: if the handle is already activated,
+    PCAP_ERROR: if an error occurs or precision is unsupported
+  example_invariants:
+    - Must be called before pcap_activate
+    - precision must be a supported PCAP_TSTAMP_PRECISION_* value
+    - Return PCAP_ERROR_ACTIVATED if already activated
+  examples:
+    - (pcap != NULL && pcap_set_tstamp_precision(pcap, PCAP_TSTAMP_PRECISION_MICRO) == 0)
+    - (pcap != NULL && pcap_set_tstamp_precision(pcap, PCAP_TSTAMP_PRECISION_NANO) != PCAP_ERROR_ACTIVATED)
+
+pcap_set_tstamp_type:
+  description: >
+    Sets the time stamp type for a capture handle before activation.
+    The type selects the source of time stamps for captured packets.
+    Must be called before pcap_activate.
+  params:
+    p: Pointer to pcap_t handle
+    tstamp_type: Time stamp type value from pcap_tstamp_type
+  Returns:
+    0: if success,
+    PCAP_ERROR_ACTIVATED: if the handle is already activated,
+    PCAP_ERROR: if an error occurs or type is unsupported
+  example_invariants:
+    - Must be called before pcap_activate
+    - tstamp_type must be supported by the device
+    - Return PCAP_ERROR_ACTIVATED if already activated
+  examples:
+    - (pcap != NULL && pcap_set_tstamp_type(pcap, PCAP_TSTAMP_HOST) == 0)
+    - (pcap != NULL && pcap_set_tstamp_type(pcap, PCAP_TSTAMP_HOST) != PCAP_ERROR_ACTIVATED)
+
+pcap_setfilter:
+  description: >
+    Sets a compiled BPF filter program on a capture handle.
+    The filter is applied to captured packets for acceptance or rejection.
+    Requires a bpf_program produced by pcap_compile.
+  params:
+    p: Pointer to pcap_t handle
+    fp: Pointer to compiled bpf_program
+  Returns:
+    0: if success,
+    -1: if an error occurs
+  example_invariants:
+    - fp must be a valid compiled filter
+    - p must be a valid pcap_t handle
+    - Filter remains in effect until changed or handle closed
+  examples:
+    - (pcap != NULL && pcap_compile(pcap, &fp, "tcp", 1, PCAP_NETMASK_UNKNOWN) == 0 && pcap_setfilter(pcap, &fp) == 0)
+    - (pcap != NULL && pcap_compile(pcap, &fp, "udp", 1, PCAP_NETMASK_UNKNOWN) == 0 && pcap_setfilter(pcap, &fp) == 0)
+
+pcap_setnonblock:
+  description: >
+    Sets whether a capture handle is in non-blocking mode.
+    In non-blocking mode, read operations return immediately.
+    Use pcap_geterr to retrieve error text on failure.
+  params:
+    p: Pointer to pcap_t handle
+    nonblock: 1 to enable non-blocking mode, 0 to disable
+    errbuf: Pointer to error buffer of size PCAP_ERRBUF_SIZE
+  Returns:
+    0: if success,
+    -1: if an error occurs
+  example_invariants:
+    - errbuf must be at least PCAP_ERRBUF_SIZE bytes
+    - nonblock must be 0 or 1
+    - On error, errbuf contains an error message
+  examples:
+    - (pcap != NULL && pcap_setnonblock(pcap, 1, errbuf) == 0)
+    - (pcap != NULL && pcap_setnonblock(pcap, 0, errbuf) == 0)
+
+pcap_snapshot:
+  description: >
+    Returns the snapshot length set on a capture handle.
+    The snapshot length limits the number of bytes captured per packet.
+    Valid after the handle has been configured.
+  params:
+    p: Pointer to pcap_t handle
+  Returns:
+    snapshot length in bytes, or 0 on error
+  example_invariants:
+    - p must be a valid pcap_t handle
+    - Returned value is non-negative
+    - Value reflects configured snaplen
+  examples:
+    - (pcap != NULL && pcap_snapshot(pcap) > 0)
+    - (pcap != NULL && pcap_snapshot(pcap) >= 0)
+
+pcap_tstamp_type_name_to_val:
+  description: >
+    Translates a time stamp type name string to its numeric value.
+    Useful for mapping user input to pcap_tstamp_type constants.
+    Name matching is case-insensitive in typical implementations.
+  params:
+    name: Time stamp type name string
+  Returns:
+    non-negative time stamp type value if recognized,
+    -1 if the name is not recognized
+  example_invariants:
+    - name must be a valid null-terminated string
+    - Return -1 if name is unknown
+    - Returned value can be used with pcap_set_tstamp_type
+  examples:
+    - pcap_tstamp_type_name_to_val("host") >= 0
+    - pcap_tstamp_type_name_to_val("unknown_type") == -1

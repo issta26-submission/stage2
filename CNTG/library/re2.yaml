@@ -1,0 +1,731 @@
+cre2_version_string:
+  description: >
+   The version string of the re2 library
+  params: {}
+  Returns: The version of the re2 library as a const char*
+  example_invariants:
+    - The return string is not NULL
+    - The returned string is a valid null-terminated C string
+  example_code: 
+    - cre2_version_string()!= NULL
+
+cre2_version_interface_current:
+  description: >
+   The current interface version of the re2 library
+  params: {}
+  Returns: The current interface version of the re2 library as an integer
+  example_invariants:
+    - The return value is greater than or equal to 0
+  example_code: 
+    - cre2_version_interface_current() >= 0
+    - cre2_version_interface_current() <= 100
+    - cre2_version_interface_current() != 0
+
+cre2_version_interface_revision:
+  description: >
+   The revision of the current interface version of the re2 library
+  params: {}
+  Returns: The revision of the current interface version of the re2 library as an integer
+  example_invariants:
+    - The return value is greater than or equal to 0
+  example_code: 
+    - cre2_version_interface_revision() >= 0
+    - cre2_version_interface_revision() <= 1000
+    - cre2_version_interface_revision() != 0
+
+cre2_version_interface_age:
+  description: >
+   The age of the current interface version of the re2 library
+  params: {}
+  Returns: The age of the current interface version of the re2 library as an integer
+  example_invariants:
+    - The return value is greater than or equal to 0
+  example_code: 
+    - cre2_version_interfaceZ_age() >= 0
+    - cre2_version_interfaceZ_age() <= 100
+    - cre2_version_interfaceZ_age() != 0
+
+cre2_opt_new:
+  description: >
+   Creates a new RE2 options object with default settings
+  params: {}
+  Returns: A pointer to a newly allocated RE2 options object
+  example_invariants:
+    - The return value is not NULL
+  example_code: 
+    - cre2_opt_new() != NULL
+
+cre2_opt_delete:
+  description: >
+    Deletes a RE2 options object created by cre2_opt_new
+  params:
+    opt: A pointer to a RE2 options object created by cre2_opt_new
+  Returns: Nothing
+  example_invariants:
+    - The function does not crash when passed a valid RE2 options object
+    - opt will not be used after calling this function
+  example_code:
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_delete(opt); assert(opt == NULL);
+  
+cre2_opt_set_posix_syntax:
+  description: >
+    Sets the POSIX syntax option for a RE2 options object
+  params:
+    opt: A pointer to a RE2 options object created by cre2_opt_new
+    flag: An integer (0 or 1) indicating whether to use POSIX syntax (1) or not (0)
+  Returns: Nothing
+  example_invariants:
+    - The function does not crash when passed a valid RE2 options object and a valid integer (0 or 1)
+    - The option is set correctly in the RE2 options object
+    - The posix_syntax value of opt should change according to the flag value
+  example_code:
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_posix_syntax(opt, 1);  cre2_opt_posix_syntax(opt) == true;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_posix_syntax(opt, 0);  cre2_opt_posix_syntax(opt) == false;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_posix_syntax(opt, 2);  cre2_opt_posix_syntax(opt) == true; 
+
+cre2_opt_set_longest_match:
+  description: >
+    Sets the longest match option for a RE2 options object
+  params:
+    opt: A pointer to a RE2 options object created by cre2_opt_new
+    flag: An integer (0 or 1) indicating whether to use longest match (1) or not (0)
+  Returns: Nothing
+  example_invariants:
+    - The function does not crash when passed a valid RE2 options object and a valid integer
+    - The option is set correctly in the RE2 options object
+    - The longest_match value of opt should change according to the flag value
+  example_code:
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_longest_match(opt, 1);  cre2_opt_longest_match(opt) == true;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_longest_match(opt, 0);  cre2_opt_longest_match(opt) == false;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_longest_match(opt, 2);  cre2_opt_longest_match(opt) == true;
+  
+cre2_opt_set_log_errors:
+  description: >
+    sets the log errors option for a RE2 options object
+  params:
+    opt: A pointer to a RE2 options object created by cre2_opt_new
+    flag: An integer (0 or 1) indicating whether to log errors (1) or not (0)
+  Returns: Nothing
+  example_invariants:
+    - The function does not crash when passed a valid RE2 options object and a valid integer
+    - The option is set correctly in the RE2 options object   
+    - The log_errors value of opt should change according to the flag value
+  example_code:
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_log_errors(opt, 1);  cre2_opt_log_errors(opt) == true;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_log_errors(opt, 0);  cre2_opt_log_errors(opt) == false;
+    - cre2_options_t  *opt = cre2_opt_new(); cre2_opt_set_log_errors(opt, 2);  cre2_opt_log_errors(opt) == true;
+  
+cre2_opt_set_literal:
+  description: >
+    Sets the literal option for a RE2 options object, if set, all the metacharacters in the pattern will be treated as literal characters
+  params:
+    opt: A pointer to a RE2 options object created by cre2_opt_new
+    flag: An integer (0 or 1) indicating whether to use literal matching (1) or not (0)
+  Returns: Nothing
+  example_invariants:
+    - The function does not crash when passed a valid RE2 options object and a valid integer
+    - The option is set correctly in the RE2 options object   
+    - The literal value of opt should change according to the flag value
+  example_code:
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_literal(opt, 1);  cre2_opt_literal(opt) == true;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_literal(opt, 0);  cre2_opt_literal(opt) == false;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_literal(opt, 2);  cre2_opt_literal(opt) == true;
+
+cre2_opt_set_never_nl:
+  description: >  
+    Sets the never_nl option for a RE2 options object, if set, the dot (.) metacharacter will never match a newline character
+  params: 
+    opt: A pointer to a RE2 options object created by cre2_opt_new
+    flag: An integer (0 or 1) indicating whether to never match newlines (1) or not (0) 
+  Returns: Nothing
+  example_invariants:
+    - The function does not crash when passed a valid RE2 options object and a valid integer
+    - The option is set correctly in the RE2 options object  
+    - The never_nl value of opt should change according to the flag value 
+  example_code:
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_never_nl(opt, 1);  cre2_opt_never_nl(opt) == true  
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_never_nl(opt, 0);  cre2_opt_never_nl(opt) == false;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_never_nl(opt, 2);  cre2_opt_never_nl(opt) == true;
+
+cre2_opt_set_dot_nl:
+  description: >
+    Sets the dot_nl option for a RE2 options object, if set, the dot (.) metacharacter will match a newline character
+  params: 
+    opt: A pointer to a RE2 options object created by cre2_opt_new
+    flag: An integer (0 or 1) indicating whether to match newlines (1) or not (0) 
+  Returns: Nothing
+  example_invariants:
+    - The function does not crash when passed a valid RE2 options object and a valid integer
+    - The option is set correctly in the RE2 options object
+    - The dot_nl value of opt should change according to the flag value
+    - The mode of dot-nl will be overwritten if both never_nl and dot_nl are set
+  example_code:
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_dot_nl(opt, 1);  cre2_opt_dot_nl(opt) == true
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_dot_nl(opt, 0);  cre2_opt_dot_nl(opt) == false
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_dot_nl(opt, 2);  cre2_opt_dot_nl(opt) == true
+
+cre2_opt_set_never_capture:
+  description: >
+    Sets the never_capture option for a RE2 options object, if set, the regex will not capture any groups
+  params:
+    opt: A pointer to a RE2 options object created by cre2_opt_new
+    flag: An integer (0 or 1) indicating whether to never capture groups (1) or not (0)
+  Returns: Nothing
+  example_invariants:   
+    - The function does not crash when passed a valid RE2 options object and a valid integer
+    - The option is set correctly in the RE2 options object
+    - The never_capture value of opt should change according to the flag value
+  example_code:
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_never_capture(opt, 1);  cre2_opt_never_capture(opt) == true;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_ne ver_capture(opt, 0);  cre2_opt_never_capture(opt) == false;
+
+cre2_opt_set_case_sensitive:
+  description: >
+    Sets the case_sensitive option for a RE2 options object, if set, the regex will be case sensitive
+  params:
+    opt: A pointer to a RE2 options object created by cre2_opt_new
+    flag: An integer (0 or 1) indicating whether to use case sensitive matching (1) or not (0)
+  Returns: Nothing
+  example_invariants:
+    - The function does not crash when passed a valid RE2 options object and a valid integer
+    - The option is set correctly in the RE2 options object
+    - The case_sensitive value of opt should change according to the flag value
+  example_code:
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_case_sensitive(opt, 1);  cre2_opt_case_sensitive(opt) == true;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_case_sensitive(opt, 0);  cre2_opt_case_sensitive(opt) == false;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_case_sensitive(opt, 2);  cre2_opt_case_sensitive(opt) == true;
+  
+cre2_opt_set_perl_classes:
+  description: >
+    Sets the perl_classes option for a RE2 options object, if set, the regex will recognize Perl character classes
+  params:
+    opt: A pointer to a RE2 options object created by cre2_opt_new
+    flag: An integer (0 or 1) indicating whether to use Perl character classes (1) or not (0)
+  Returns: Nothing
+  example_invariants:
+    - The function does not crash when passed a valid RE2 options object and a valid integer
+    - The option is set correctly in the RE2 options object
+    - The perl_classes value of opt should change according to the flag value
+  example_code:
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_perl_classes(opt, 1);  cre2_opt_perl_classes(opt) == true;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_perl_classes(opt, 0);  cre2_opt_perl_classes(opt) == false;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_perl_classes(opt, 2);  cre2_opt_perl_classes(opt) == true;
+
+cre2_opt_set_word_boundary:
+  description: >  
+    Sets the word_boundary option for a RE2 options object, if set, unicode will be used. Otherwise ASCII will be used
+  params:
+    opt: A pointer to a RE2 options object created by cre2_opt_new
+    flag: An integer (0 or 1) indicating whether to use unicode word boundaries (1) or ASCII word boundaries (0)
+  Returns: Nothing
+  example_invariants:
+    - The function does not crash when passed a valid RE2 options object and a valid integer
+    - The option is set correctly in the RE2 options object
+    - The word_boundary value of opt should change according to the flag value
+  example_code:
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_word_boundary(opt, 1);  cre2_opt_word_boundary(opt) == true;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_word_boundary(opt, 0);  cre2_opt_word_boundary(opt) == false;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_word_boundary(opt, 2);  cre2_opt_word_boundary(opt) == true;
+
+cre2_opt_set_one_line:
+  description: >
+    Sets the one_line option for a RE2 options object, if set, the regex will treat the input as a single line
+  params:
+    opt: A pointer to a RE2 options object created by cre2_opt_new
+    flag: An integer (0 or 1) indicating whether to treat the input as a single line (1) or not (0)
+  Returns: Nothing
+  example_invariants:
+    - The function does not crash when passed a valid RE2 options object and a valid integer
+    - The option is set correctly in the RE2 options object
+    - The one_line value of opt should change according to the flag value
+  example_code:
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_one_line(opt, 1);  cre2_opt_one_line(opt) == true;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_one_line(opt, 0);  cre2_opt_one_line(opt) == false;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_one_line(opt, 2);  cre2_opt_one_line(opt) == true;
+
+cre2_opt_set_max_mem:
+  description: >
+    Sets the max_mem option for a RE2 options object, which limits the maximum memory usage
+  params:
+    opt: A pointer to a RE2 options object created by cre2_opt_new
+    m: An integer specifying the maximum memory usage in bytes
+  Returns: Nothing
+  example_invariants:
+    - The function does not crash when passed a valid RE2 options object and a non-negative integer
+    - The option is set correctly in the RE2 options object
+    - The max_mem value of opt should be equal to the m value passed
+  example_code:
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_max_mem(opt, 1024);  cre2_opt_max_mem(opt) == 1024;
+
+cre2_opt_set_encoding:
+  description: >
+    Sets the encoding option for a RE2 options object, which specifies the character encoding to be used
+  params:
+    opt: A pointer to a RE2 options object created by cre2_opt_new
+    encoding: An integer specifying the encoding type (0 for UNKNOWN, 1 for UTF8, 2 for Latin1)
+  Returns: Nothing
+  example_invariants:
+    - The function does not crash when passed a valid RE2 options object and a valid encoding integer (0, 1, or 2)
+    - The option is set correctly in the RE2 options object
+    - The encoding value of opt should be equal to the encoding value passed
+    - CRE2_UNKNOWN should never occur, if you pass CRE2_UNKNOWN, it will crash
+  example_code:
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_encoding(opt, CRE2_UTF8);  cre2_opt_encoding(opt) == 1;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_encoding(opt, CRE2_Latin1);  cre2_opt_encoding(opt) == 2;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_encoding(opt, 0);  cre2_opt_encoding(opt) == 0;
+
+cre2_opt_posix_syntax:
+  description: >
+    Gets the current value of the posix_syntax option from a RE2 options object
+  params:
+    opt: A pointer to a RE2 options object created by cre2_opt_new
+  Returns: An integer (0 or 1) indicating whether POSIX syntax is enabled (1) or not (0)
+  example_invariants:
+    - The return value is either 0 or 1, readonly, does not change the state of opt
+  example_code:
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_posix_syntax(opt, 1);  cre2_opt_posix_syntax(opt) == true;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_posix_syntax(opt, 0);  cre2_opt_posix_syntax(opt) == false;
+
+cre2_opt_longest_match:
+  description: >  
+    Gets the current value of the longest_match option from a RE2 options object
+  params:
+    opt: A pointer to a RE2 options object created by cre2_opt_new
+  Returns: An integer (0 or 1) indicating whether longest match is enabled (1) or not (0)
+  example_invariants:
+    - The return value is either 0 or 1, readonly, does not change the state of opt
+  example_code: 
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_longest_match(opt, 1);  cre2_opt_longest_match(opt) == true;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_longest_match(opt, 0);  cre2_opt_longest_match(opt) == false;
+
+cre2_opt_log_errors:
+  description: >
+    Gets the current value of the log_errors option from a RE2 options object
+  params:
+    opt: A pointer to a RE2 options object created by cre2_opt_new
+  Returns: An integer (0 or 1) indicating whether logging errors is enabled (1) or not (0)
+  example_invariants:
+    - The return value is either 0 or 1, readonly, does not change the state of opt
+  example_code:
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_log_errors(opt, 1);  cre2_opt_log_errors(opt) == true;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_log_errors(opt, 0);  cre2_opt_log_errors(opt) == false;
+    - cre2_options_t  *opt = cre2_opt_new(); cre2_opt_set_log_errors(opt, 2);  cre2_opt_log_errors(opt) == true;
+
+cre2_opt_literal:
+  description: >
+    Gets the current value of the literal option from a RE2 options object
+  params:
+    opt: A pointer to a RE2 options object created by cre2_opt_new
+  Returns: An integer (0 or 1) indicating whether literal matching is enabled (1) or not (0)
+  example_invariants:
+    - The return value is either 0 or 1, readonly, does not change the state of opt
+  example_code:
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_literal(opt, 1);  cre2_opt_literal(opt) == true;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_literal(opt, 0);  cre2_opt_literal(opt) == false;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_literal(opt, 2);  cre2_opt_literal(opt) == true;
+  
+cre2_opt_never_nl:
+  description: >
+    Gets the current value of the never_nl option from a RE2 options object
+  params:
+    opt: A pointer to a RE2 options object created by cre2_opt_new
+  Returns: An integer (0 or 1) indicating whether never matching newlines is enabled
+  example_invariants:
+    - The return value is either 0 or 1, readonly, does not change the state of opt
+  example_code:
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_ne ver_nl(opt, 1);  cre2_opt_never_nl(opt) == true
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_ne ver_nl(opt, 0);  cre2_opt_never_nl(opt) == false;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_never_nl(opt, 2);  cre2_opt_never_nl(opt) == true
+  
+cre2_opt_dot_nl:
+  description: >
+    Gets the current value of the dot_nl option from a RE2 options object
+  params:
+    opt: A pointer to a RE2 options object created by cre2_opt_new
+  Returns: An integer (0 or 1) indicating whether matching newlines is enabled (1) or not (0)
+  example_invariants:
+    - The return value is either 0 or 1, readonly, does not change the state of opt
+  example_code:
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_dot_nl(opt, 1);  cre2_opt_dot_nl(opt) == true
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_dot_nl(opt, 0);  cre2_opt_dot_nl(opt) == false
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_dot_nl(opt, 2);  cre2_opt_dot_nl(opt) == true
+
+cre2_opt_never_capture:
+  description: >
+    Gets the current value of the never_capture option from a RE2 options object
+  params:
+    opt: A pointer to a RE2 options object created by cre2_opt_new
+  Returns: An integer (0 or 1) indicating whether never capturing groups is enabled (1) or not (0)
+  example_invariants:
+    - The return value is either 0 or 1, readonly, does not change the state of opt
+  example_code:
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_never_capture(opt, 1);  cre2_opt_never_capture(opt) == true;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_never_capture(opt, 0);  cre2_opt_never_capture(opt) == false;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_never_capture(opt, 2);  cre2_opt_never_capture(opt) == true;
+
+cre2_opt_case_sensitive:
+  description: >
+    Gets the current value of the case_sensitive option from a RE2 options object
+  params:
+    opt: A pointer to a RE2 options object created by cre2_opt_new
+  Returns: An integer (0 or 1) indicating whether case sensitive matching is enabled (1) or not (0)
+  example_invariants:
+    - The return value is either 0 or 1, readonly, does not change the state of opt
+  example_code:
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_case_sensitive(opt, 1);  cre2_opt_case_sensitive(opt) == true;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_case_sensitive(opt, 0);  cre2_opt_case_sensitive(opt) == false;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_case_sensitive(opt, 2);  cre2_opt_case_sensitive(opt) == true;
+  
+cre2_opt_perl_classes:
+  description: >
+    Gets the current value of the perl_classes option from a RE2 options object
+  params:
+    opt: A pointer to a RE2 options object created by cre2_opt_new
+  Returns: An integer (0 or 1) indicating whether Perl character classes are enabled (1) or not (0)
+  example_invariants:
+    - The return value is either 0 or 1, readonly, does not change the state of opt
+  example_code:
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_perl_classes(opt, 1);  cre2_opt_perl_classes(opt) == true;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_perl_classes(opt, 0);  cre2_opt_perl_classes(opt) == false;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_perl_classes(opt, 2);  cre2_opt_perl_classes(opt) == true;
+
+cre2_opt_word_boundary:
+  description: >
+    Gets the current value of the word_boundary option from a RE2 options object
+  params:
+    opt: A pointer to a RE2 options object created by cre2_opt_new
+  Returns: An integer (0 or 1) indicating whether unicode word boundaries are enabled (1) or ASCII word boundaries (0)
+  example_invariants:
+    - The return value is either 0 or 1, readonly, does not change the state of opt
+  example_code:
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_word_boundary(opt, 1);  cre2_opt_word_boundary(opt) == true;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_word_boundary(opt, 0);  cre2_opt_word_boundary(opt) == false;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_word_boundary(opt, 2);  cre2_opt_word_boundary(opt) == true;
+
+cre2_opt_one_line:
+  description: >
+    Gets the current value of the one_line option from a RE2 options object
+  params:
+    opt: A pointer to a RE2 options object created by cre2_opt_new
+  Returns: An integer (0 or 1) indicating whether treating input as a single line is enabled (1) or not (0)
+  example_invariants:
+    - The return value is either 0 or 1, readonly, does not change the state of opt
+  example_code:
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_one_line(opt, 1);  cre2_opt_one_line(opt) == true;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_one_line(opt, 0);  cre2_opt_one_line(opt) == false;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_one_line(opt, 2);  cre2_opt_one_line(opt) == true;
+
+cre2_opt_max_mem:
+  description: >
+    Gets the current value of the max_mem option from a RE2 options object
+  params:
+    opt: A pointer to a RE2 options object created by cre2_opt_new
+  Returns: An integer specifying the maximum memory usage in bytes
+  example_invariants:
+    - The return value is an integer, readonly, does not change the state of  opt
+  example_code:
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_max_mem(opt, 1024);  cre2_opt_max_mem(opt) == 1024;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_max_mem(opt, 0);  cre2_opt_max_mem(opt) == 0;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_max_mem(opt, 2048);  cre2_opt_max_mem(opt) == 2048;
+  
+cre2_opt_encoding:
+  description: >
+    Gets the current value of the encoding option from a RE2 options object
+  params:
+    opt: A pointer to a RE2 options object created by cre2_opt_new
+  Returns: An integer specifying the encoding type (0 for UNKNOWN, 1 for UTF8, 2 for Latin1)
+  example_invariants:
+    - The return value should not be 0, should be 1 or 2
+  example_code:
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_encoding(opt, CRE2_UTF8);  cre2_opt_encoding(opt) == 1;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_encoding(opt, CRE2_Latin1);  cre2_opt_encoding(opt) == 2;
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_encoding(opt, 0);  cre2_opt_encoding(opt) == 0 Program will crash
+  
+cre2_new:
+  description: >
+    create a new RE2 object with the given pattern and options
+  params:
+    pattern: A null-terminated C string representing the regex pattern
+    pattern_len: The length of the pattern string
+    opt: A pointer to a RE2 options object created by cre2_opt_new, or NULL to use default options
+  Returns: A pointer to a newly allocated RE2 object, or NULL if the pattern is invalid
+  example_invariants:
+    - The return value is not NULL for a valid pattern
+    - Pattern length should be non-negative and qual to the actual length of the pattern string
+    - When pattern is too large, it will still create a RE2 object, but you can use cre2_error_string to get the errors
+    - When something went wrong, it will still create, but you can use cre2_error_string to get the errors
+  example_code:
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_case_sensitive(opt, 1); cre2_regexp_t *re = cre2_new("a.*b", 4, opt); assert(re != NULL);
+    - cre2_regexp_t *re = cre2_new("a.*b", 4, NULL); assert(re != NULL);
+    - cre2_regexp_t *re = cre2_new("a[", 2, NULL); assert(re != NULL); // Invalid pattern
+    - cre2_regexp_t *re = cre2_new("", 0, NULL); assert(re != NULL); // Empty pattern is valid
+    - char large_pattern[10000]; memset(large_pattern, 'a', 9999); large_pattern[9999] = '\0'; cre2_regexp_t *re = cre2_new(large_pattern, 9999, NULL); assert(re != NULL); // Very large pattern
+
+cre2_delete:
+  description: >  
+    Deletes a RE2 object created by cre2_new
+  params:
+    re: A pointer to a RE2 object created by cre2_new
+  Returns: Nothing
+  example_invariants:
+    - Double deletion will lead to crash
+    - the re will not be used after calling this function
+    - nullptr is allowed, and will not crash
+    - re should not be null after calling this function because it still point to the same memory location
+  example_code:
+    - cre2_options_t *opt = cre2_opt_new(); cre2_opt_set_case_sensitive(opt, 1); cre2_regexp_t *re = cre2_new("a.*b", 4, opt); cre2_delete(re); assert(re != NULL);
+    - cre2_regexp_t *re = cre2_new("a.*b", 4, NULL); cre2_delete(re); assert(re != NULL);
+    - cre2_regexp_t *re = NULL; cre2_delete(re); assert(re == NULL); // Deleting nullptr should not crash
+
+cre2_pattern:
+  description: >
+    Gets the pattern string from a RE2 object
+  params:
+    re: A pointer to a RE2 object created by cre2_new
+  Returns: A pointer to a null-terminated C string representing the regex pattern, or NULL if re is NULL
+  example_invariants:
+    - The return value is not NULL for a valid RE2 object
+    - The returned string is a valid null-terminated C string and should equal to the pattern used to create the RE2 object
+    - If re is NULL, the return value should be NULL
+    - Will not change the state of re
+  example_code:
+    - cre2_regexp_t *re = cre2_new("a.*b", 4, NULL); assert(strcmp(cre2_pattern(re), "a.*b") == 0);
+    - cre2_regexp_t *re = cre2_new("", 0, NULL); assert(strcmp(cre2_pattern(re), "") == 0); // Empty pattern
+    - cre2_regexp_t *re = NULL; assert(cre2_pattern(re) == NULL); // NULL RE2 object
+
+cre2_error_code:
+  description: >
+    Gets the error code from a RE2 object
+  params:
+    re: A pointer to a RE2 object created by cre2_new
+  Returns: An integer representing the error code, or 0 if there is no error or re is NULL 
+  example_invariants:
+    - The return value is 0 for a valid RE2 object with no errors
+    - Will return non-zero for a RE2 object created with an bad params
+    - readonly, does not change the state of re
+    - will crash if re is null
+  example_code:
+    - cre2_regexp_t *re = cre2_new("a.*b", 4, NULL); assert(cre2_error_code(re) == 0);
+    - cre2_regexp_t *re = cre2_new("a[", 2, NULL); assert(cre2_error_code(re) != 0); // Invalid pattern
+    - cre2_regexp_t *re = NULL;  assert(cre2_error_code(re) == 0); crash // NULL RE2 object will crash
+  
+cre2_num_capturing_groups:
+  description: >
+    Gets the number of capturing groups in the regex pattern from a RE2 object
+  params:
+    re: A pointer to a RE2 object created by cre2_new
+  Returns: An integer representing the number of capturing groups, or -1 if something went wrong
+  example_invariants:
+    - The return value is non-negative for a valid RE2 object
+    - The return value should be equal to the number of capturing groups in the pattern used to create the RE2 object
+    - readonly, does not change the state of re
+    - will crash if re is null
+  example_code:
+    - cre2_regexp_t *re = cre2_new("(a)(b(c))", 8, NULL); assert(cre2_num_capturing_groups(re) == -1);//wrong parameter
+    - cre2_regexp_t *re = cre2_new("a.*b", 4, NULL); assert(cre2_num_capturing_groups(re) == 0); // No capturing groups
+    - cre2_regexp_t *re = NULL; assert(cre2_num_capturing_groups(re) == -1); crash // NULL RE2 object will crash
+    - cre2_regexp_t *re = cre2_new("(a)(b(c))", 8, NULL); assert(cre2_num_capturing_groups(re) == -1)
+
+cre2_program_size:
+  description: >
+    Gets the size of the compiled regex program from a RE2 object
+  params:
+    re: A pointer to a RE2 object created by cre2_new
+  Returns: An integer representing the size of the compiled regex program in bytes, or -1 if something went wrong
+  example_invariants:
+    - The return value is non-negative for a valid RE2 object
+    - The return value should be greater than 0 for a non-empty pattern
+    - readonly, does not change the state of re
+    - will crash if re is null
+  example_code:
+    - cre2_regexp_t *re = cre2_new("a.*b", 4, NULL); assert(cre2_program_size(re) > 0);
+    - cre2_regexp_t *re = cre2_new("", 0, NULL); assert(cre2_program_size(re) > 0); // Empty pattern still has a program
+    - cre2_regexp_t *re = NULL; assert(cre2_program_size(re) == -1); crash // NULL RE2 object will crash
+
+cre2_find_named_capturing_groups:
+  description: >
+    Finds the index of a named capturing group in the regex pattern from a RE2 object
+  params:
+    re: A pointer to a RE2 object created by cre2_new
+    name: A null-terminated C string representing the name of the capturing group
+  Returns: An integer representing the index of the named capturing group, or -1 if not found or something went wrong
+  example_invariants:
+    - The return value is non-negative for a valid RE2 object and a valid group name
+    - The return value should be equal to the index of the named capturing group in the pattern used to create the RE2 object
+    - If the named capturing group does not exist, the return value should be -1
+    - readonly, does not change the state of re
+    - will crash if re is null
+  example_code:
+    - const char *pattern = "(?P<year>\\d{4})-(?P<month>\\d{2})-(?P<day>\\d{2})";  cre2_regexp_t *re = cre2_new(pattern, strlen(pattern), opt);  int month_index = cre2_find_named_capturing_groups(re, "month");  assert(month_index == 2);
+    - const char *pattern = "(?P<year>\\d{4})-(?P<month>\\d{2})-(?P<day>\\d{2})";  cre2_regexp_t *re = cre2_new(pattern, strlen(pattern), opt);  int non_existent_index = cre2_find_named_capturing_groups(re, "week"); assert(non_existent_index <=0); // Non-existent group
+    - cre2_regexp_t *re = NULL; assert(cre2_find_named_capturing_groups(re, "first") == -1); crash // NULL RE2 object will crash
+
+cre2_named_groups_iter_new:
+  description: >
+    Creates a new iterator for named capturing groups in the regex pattern from a RE2 object
+  params:
+    re: A pointer to a RE2 object created by cre2_new
+  Returns: A pointer to a newly allocated iterator object, or NULL if something went wrong
+  example_invariants:
+    - The return value is not NULL for a valid RE2 object with named capturing groups
+    - If the RE2 object has no named capturing groups, the return value should not be NULL
+    - readonly, does not change the state of re
+    - will crash if re is null
+  example_code:
+    - const char *pattern = "(?<host>[a-z]+)";cre2_options_t *opt = cre2_opt_new();   cre2_regexp_t *re = cre2_new(pattern, (int)strlen(pattern), opt); cre2_named_groups_iter_t *iter = cre2_named_groups_iter_new(re); assert(iter != NULL);
+    - const char *pattern = "([a-z]+)"; cre2_options_t *opt = cre2_opt_new();   cre2_regexp_t *re = cre2_new(pattern, (int)strlen(pattern), opt); cre2_named_groups_iter_t *iter = cre2_named_groups_iter_new(re); assert(iter != NULL); // No named groups, but still Returns an iterator
+
+
+cre2_named_groups_iter_next:
+  description: >
+    Advances the iterator to the next named capturing group and retrieves its name and index
+  params:
+    iter: A pointer to a named groups iterator created by cre2_named_groups_iter_new
+    name: A pointer to a const char* that will be set to point to the name
+    index: A pointer to an integer that will be set to the index of the named capturing group
+  Returns: 1 if the iterator was successfully advanced and the name and index were set, 0 if there are no more named capturing groups, or -1 if something went wrong
+  example_invariants:
+    - The return value is 1 when there are more named capturing groups to iterate over
+    - The return value is 0 when there are no more named capturing groups
+    - index will change according to the group index
+  example_code:
+    - const char *pattern = "(?<key>\\w+)=(?<value>.*)";cre2_options_t *opt = cre2_opt_new(); bool has_next = cre2_named_groups_iter_next(iter, &group_name, &group_index); assert(has_next == true);assert(group_name != NULL && strcmp(group_name, "key") == 0);assert(group_index == 1);
+    - bool has_next = cre2_named_groups_iter_next(iter, &group_name, &group_index);assert(has_next == false);// Situation when reach the encoding
+  
+cre2_named_groups_iter_delete:
+  description: >
+    Deletes a named groups iterator created by cre2_named_groups_iter_new
+  params:
+    iter: A pointer to a named groups iterator created by cre2_named_groups_iter_new
+  Returns: Nothing
+  example_invariants:
+    - Double deletion will lead to crash
+    - the iter will not be used after calling this function
+    - nullptr is allowed, and will not crash
+  example_code:
+    - const char *pattern = "(?<key>\\w+)=(?<value>.*)";cre2_options_t *opt = cre2_opt_new();   cre2_regexp_t *re = cre2_new(pattern, (int)strlen(pattern), opt); cre2_named_groups_iter_t *iter = cre2_named_groups_iter_new(re); cre2_named_groups_iter_delete(iter); assert(iter != NULL);
+    - cre2_named_groups_iter_t *iter = NULL; cre2_named_groups_iter_delete(iter); assert(iter == NULL); // Deleting nullptr should not crash
+
+cre2_error_string:
+  description: > 
+    Gets the error message string from a RE2 object
+  params:
+    re: A pointer to a RE2 object created by cre2_new
+  Returns: A pointer to a null-terminated C string representing the error message, or NULL if there is no error or re is NULL
+  example_invariants:
+    - The return value is not NULL for a RE2 object with errors
+    - The returned string is a valid null-terminated C string describing the error
+    - If there is no error , the return value should be NULL
+    - readonly, does not change the state of re
+    - will crash if re is null
+  example_code:
+    - cre2_regexp_t *re = cre2_new("a[", 2, NULL); assert(cre2_error_string(re) != NULL); // Invalid pattern
+    - const char *pattern = "a(b";cre2_regexp_t *re = cre2_new(pattern, (int)strlen(pattern), NULL);const char *err_str = cre2_error_string(re);assert(strstr(err_str, "missing") != NULL);
+    - cre2_regexp_t *re = NULL; assert(cre2_error_string(re) == NULL);crash // NULL RE2 object will crash
+
+cre2_error_arg:
+  description: >
+    Gets the error argument string from a RE2 object
+  params:
+    re: A pointer to a RE2 object created by cre2_new
+    args: A pointer to a null-terminated C string representing the error argument
+  Returns: Nothing, args will be set to point to the error argument string
+  example_invariants:
+    - The args value is not NULL for a RE2 object with errors
+    - The returned string is a valid null-terminated C string describing the error argument
+    - If there is no error , args should be set to NULL
+    - readonly, does not change the state of re
+    - will crash if re is null
+  example_code:
+    - const char* invalid_pattern = "hello(world"; cre2_options_t *opt = cre2_opt_new(); cre2_regexp_t *re = cre2_new(invalid_pattern, strlen(invalid_pattern), opt); cre2_error_arg(re, &error_arg); assert(error_arg != NULL); assert(error_arg.length>0);
+    - const char* valid_pattern = "hello(world)";cre2_options_t *opt = cre2_opt_new();cre2_regexp_t *re = cre2_new(valid_pattern, strlen(valid_pattern), opt); cre2_string_t error_arg;   cre2_error_arg(re, &error_arg); assert(error_arg.length==0); // No error, so error_arg should be NULL 
+
+cre2_match:
+  description: >
+    Checks if the entire input string matches the regex pattern from a RE2 object
+  params:
+    re: A pointer to a RE2 object created by cre2_new
+    text: A null-terminated C string representing the input text to be matched
+    text_len: The length of the input text string
+    startpos: The starting position in the text to begin matching (0-based index)
+    endpos: The ending position in the text to stop matching (0-based index, exclusive)
+    anchor: An integer indicating the anchoring mode (0 for unanchored, 1 for anchored at start, 2 for anchored at end, 3 for anchored at both start and end)
+    match: AN array to store your result,match[0] is the start position of the match,match[1] is the next position of the match, and so one_line
+    nmatch: The number of elements in the match array
+  Returns: If the text matches the pattern, the return value is 1. If the text does not match the pattern, the return value is 0. If the pattern is invalid, the return value is 2.
+  example_invariants:
+    - text should be a valid pointer and length at least text_len
+    - if nmatch>0, match should be a valid pointer and length at least nmatch
+    - anchor must be a valid value in cre2_anchor_t
+    - startpos and endpos must be within the bounds of the text string (0 <= startpos <= endpos <= text_len)
+    - The return value is 1 when the entire text matches the pattern
+    - The return value is 0 when the text does not match the pattern
+    - The return value is 2 when re is NULL or invalid
+    - if nmatch>0, match array will be filled point to substring of the match in text
+    - match[i] means the ith capturing group, match[0] is the full match, match[1] is the first capturing group, and so on
+  example_code:
+    - onst char* p="a(b+)c(d*)"; const char* t="zzzaabbcddeff"; cre2_options_t* o=cre2_opt_new(); cre2_regexp_t* re=cre2_new(p,strlen(p),o); cre2_string_t m[3]; int r=cre2_match(re,t,strlen(t),0,strlen(t),CRE2_ANCHOR_START,m,3); assert(r==0);
+    - const char* p="a(b+)c(d*)"; const char* t="zzzaabbcddeff"; cre2_options_t* o=cre2_opt_new(); cre2_regexp_t* re=cre2_new(p,strlen(p),o); cre2_string_t m[3]; int r=cre2_match(re,t,strlen(t),0,strlen(t),CRE2_UNANCHORED,m,3); assert(r==1 && m[0].data==t+4 && m[0].length==6);
+
+
+cre2_easy_match:
+  description: >
+    Like cre2_match() but the pattern is specified as string pattern holding pattern_len bytes. Also the text is fully matched without anchoring.
+  params:
+    pattern: A null-terminated C string representing the regex pattern
+    pattern_len: The length of the pattern string
+    text: A null-terminated C string representing the input text to be matched
+    text_len: The length of the input text string
+    match: AN array to store your result,match[0] is the start position of the match,match[1] is the next position of the match, and so one_line
+    nmatch: The number of elements in the match array
+  Returns: If the text matches the pattern: the return value is 1. If the text does not match the pattern: the return value is 0. If the pattern is invalid: the return value is 2.
+  example_invariants:
+    - pattern should be a valid pointer and length at least pattern_len
+    - text should be a valid pointer and length at least text_len
+    - if nmatch>0, match should be a valid pointer and length at least nmatch
+    - The return value is 1 when the entire text matches the pattern
+    - The return value is 0 when the text does not match the pattern
+    - Readonly, does not change the state of any RE2 object
+    - The return value is 2 when pattern is NULL or invalid
+    - if nmatch>0, match array will be filled point to substring of the match in text
+    - match[i] means the ith capturing group, match[0] is the full match, match[1] is the first capturing group, and so on
+  example_code:
+    - const char* p="Hello (\\w+)!"; const char* t="Hello World!"; cre2_string_t m[2]; int r=cre2_easy_match(p,strlen(p),t,strlen(t),m,2); assert(r==1 && m[1].data==t+6 && m[1].length==5);
+    - const char* p="a(b"; const char* t="any"; int r=cre2_easy_match(p,strlen(p),t,strlen(t),NULL,0); assert(r==2);
+    - const char* p="Hello (\\w+)!"; const char* t="Hi there!"; int r=cre2_easy_match(p,strlen(p),t,strlen(t),NULL,0); assert(r==0);
+
+cre2_strings_to_ranges:
+  description: >
+    Given an array of strings with nmatch elements being the result of matching text against a regular expression: fill the array of ranges with the index intervals in the text buffer representing the same results.
+  params:
+    text: A null-terminated C string representing the input text that was matched
+    ranges: An array to store the resulting ranges
+    strings: a pointer to an array of cre2_string_t objects representing the matched substrings
+    nmatch: The number of elements in the strings and ranges arrays
+  Returns: Nothing
+  example_invariants:
+    - nmatch should be the length of strings and ranges arrays
+    - text should be a valid pointer and length at least the maximum end position in ranges
+    - If strings[i] is a match, ranges[i] will be filled and ranges[i].start and ranges[i].end will be within the bounds of text
+    - Will not change the state of strings or text
+  example_code:
+    - const char* p="ID:(\\d+);Name:(\\w+)"; const char* t="Data -> ID:123;Name:Gemini"; cre2_options_t* o=cre2_opt_new(); cre2_regexp_t* re=cre2_new(p,strlen(p),o); cre2_string_t ms[3]; cre2_match(re,t,strlen(t),0,strlen(t),CRE2_UNANCHORED,ms,3); cre2_range_t mr[3]; cre2_strings_to_ranges(t,mr,ms,3); assert(mr[2].start==20 && mr[2].past==26);
+    - const char* p="a(b)?c"; const char* t="ac"; cre2_options_t* o=cre2_opt_new(); cre2_regexp_t* re=cre2_new(p,strlen(p),o); cre2_string_t ms[2]; cre2_match(re,t,strlen(t),0,strlen(t),CRE2_UNANCHORED,ms,2); cre2_range_t mr[2]; cre2_strings_to_ranges(t,mr,ms,2); assert(mr[0].start==0 && mr[0].past==2);
+
+cre2_full_match:
+  description: >
+    Match the zero–terminated string pattern or the precompiled regular expression rex against the full buffer text.
+  params:
+    pattern: A null-terminated C string representing the regex pattern
+    text: A null-terminated C string representing the input text to be matched
+    match: AN array to store your result,match[0] is the start position of
+    nmatch: The number of elements in the match array
+  Returns: If the text matches the pattern,the return value is 1, else 0
+  example_invariants:
+    - pattern and text should be valid pointers
+    - if nmatch>0, match should be a valid pointer and length at least n
+    - The return value is 1 when the entire text matches the pattern
+    - The return value is 0 when the text does not match the pattern
+    - Readonly, does not change the state of any RE2 object
+    - If return value is 1 and nmatch>0, match array will be filled point to substring of the match in text
+    

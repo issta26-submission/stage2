@@ -1,0 +1,1375 @@
+sqlite3_bind_blob:
+  description: >
+    Binds a BLOB value to a parameter in a prepared statement. The buffer is
+    either copied or referenced based on the provided destructor argument.
+  params:
+    stmt: Prepared statement handle (sqlite3_stmt*); must be valid and not finalized.
+    index: 1-based parameter index to bind.
+    value: Pointer to the blob bytes (can be NULL when n is 0 to bind an empty blob).
+    n: Number of bytes to bind; negative values are treated as the length of value.
+    destructor: Callback defining buffer lifetime (e.g., SQLITE_TRANSIENT or SQLITE_STATIC).
+  Returns:
+    SQLITE_OK: On success.
+    SQLITE_RANGE or SQLITE_MISUSE: If index is invalid or stmt is unusable.
+    SQLITE_NOMEM: If memory allocation fails during binding.
+  example_invariants:
+    - index is 1-based and must be <= sqlite3_bind_parameter_count(stmt).
+    - If destructor is SQLITE_STATIC, value must remain valid until the statement is reset or finalized.
+    - Passing SQLITE_TRANSIENT copies the buffer immediately; the caller can free value after the call.
+    - n can be 0 to bind an empty blob regardless of value being NULL.
+  examples:
+    - sqlite3_bind_blob(stmt, 1, data, len, SQLITE_TRANSIENT) == SQLITE_OK
+    - sqlite3_bind_blob(stmt, 0, data, len, SQLITE_TRANSIENT) == SQLITE_RANGE
+
+sqlite3_blob:
+  description: >
+    Opaque handle used for incremental BLOB I/O obtained from sqlite3_blob_open.
+    Provides random read/write access to a single row's BLOB column while the handle remains open.
+  example_invariants:
+    - Handles are created only by sqlite3_blob_open and must be released with sqlite3_blob_close.
+    - Each handle is tied to a specific database, table, column, and rowid; schema changes or row deletion invalidate it.
+    - A handle follows the threading mode of the parent connection and cannot be shared across connections.
+  examples:
+    - (sqlite3_blob_open(db, "main", "t", "c", rowid, 0, &b) == SQLITE_OK) ? (b != NULL) : 0
+    - sqlite3_blob_close(NULL) == SQLITE_OK
+
+sqlite3_blob_bytes:
+  description: >
+    Returns the size in bytes of the BLOB referenced by an open sqlite3_blob handle.
+  params:
+    blob: An open sqlite3_blob handle.
+  Returns: The number of bytes in the BLOB; undefined if blob is NULL or closed.
+  example_invariants:
+    - The size is constant for the lifetime of the handle; writes do not change it.
+    - blob must be a valid, open handle obtained from sqlite3_blob_open.
+    - The return value is >= 0.
+  examples:
+    - sqlite3_blob_bytes(blob) >= 0
+    - sqlite3_blob_bytes(blob) == expected_size
+
+sqlite3_blob_close:
+  description: >
+    Closes an sqlite3_blob handle and releases associated resources.
+  params:
+    blob: The blob handle to close (can be NULL).
+  Returns:
+    SQLITE_OK: Returned for NULL or successfully closed handles.
+    Error code: If closing fails due to I/O or database errors.
+  example_invariants:
+    - It is safe to call with NULL; it returns SQLITE_OK.
+    - After closing, the handle must not be used for reads or writes.
+    - Re-closing the same handle results in SQLITE_MISUSE.
+  examples:
+    - sqlite3_blob_close(blob) == SQLITE_OK
+    - sqlite3_blob_close(NULL) == SQLITE_OK
+
+sqlite3_blob_open:
+  description: >
+    Opens a handle for incremental read or write access to a BLOB column in a specific row.
+  params:
+    db: Open sqlite3* database connection.
+    db_name: Database name (e.g., "main", "temp", or attached schema name).
+    table: Table name containing the BLOB column.
+    column: Column name of the BLOB field.
+    rowid: Rowid identifying the target row.
+    flags: 0 for read-only access; SQLITE_OPEN_READWRITE for read/write.
+    blob_out: Output pointer set to the new sqlite3_blob* handle on success.
+  Returns:
+    SQLITE_OK: On success; *blob_out is set to a valid handle.
+    SQLITE_ERROR or SQLITE_READONLY: If the table/column is missing or access is denied.
+    SQLITE_NOTFOUND: If the requested rowid does not exist.
+  example_invariants:
+    - The target row must exist and contain a BLOB value in the specified column.
+    - Write access requires the database and column to be writable and may require an active transaction.
+    - blob_out must be non-NULL; on failure *blob_out is left unchanged.
+  examples:
+    - sqlite3_blob_open(db, "main", "t", "c", rowid, 0, &blob) == SQLITE_OK
+    - sqlite3_blob_open(db, "main", "t", "c", rowid, SQLITE_OPEN_READWRITE, &blob) != SQLITE_READONLY
+
+sqlite3_blob_read:
+  description: >
+    Reads a portion of the BLOB referenced by an sqlite3_blob handle into a caller-provided buffer.
+  params:
+    blob: Open sqlite3_blob handle (must have read access).
+    buffer: Destination buffer to receive bytes (can be NULL only if n is 0).
+    n: Number of bytes to read.
+    offset: 0-based offset within the BLOB to start reading.
+  Returns:
+    SQLITE_OK: On success.
+    SQLITE_ERROR or SQLITE_ABORT: If the underlying query aborts.
+    SQLITE_IOERR: For I/O failures; SQLITE_READONLY or SQLITE_MISUSE for invalid usage.
+  example_invariants:
+    - offset + n must be <= sqlite3_blob_bytes(blob); otherwise SQLITE_ERROR or SQLITE_MISUSE is returned.
+    - The handle must be open and not yet closed.
+    - buffer must have capacity for n bytes; no null-termination is added.
+  examples:
+    - sqlite3_blob_read(blob, buf, sqlite3_blob_bytes(blob), 0) == SQLITE_OK
+    - sqlite3_blob_read(blob, buf, 4, sqlite3_blob_bytes(blob)) != SQLITE_OK
+
+sqlite3_busy_handler:
+  description: >
+    Registers a callback that SQLite invokes when a table is locked. The callback decides whether to retry the operation.
+  params:
+    db: Open sqlite3* connection.
+    callback: Function pointer int (*)(void*, int) invoked with user_data and attempt count; NULL clears the handler.
+    user_data: Void pointer passed to the callback on each invocation.
+  Returns: SQLITE_OK.
+  example_invariants:
+    - Only one busy handler is active per connection; setting a new one replaces the old handler.
+    - If the callback returns 0, SQLite stops retrying and returns SQLITE_BUSY to the caller.
+    - If callback is NULL, busy handling reverts to default (immediate SQLITE_BUSY).
+  examples:
+    - sqlite3_busy_handler(db, my_busy_fn, ctx) == SQLITE_OK
+    - sqlite3_busy_handler(db, NULL, NULL) == SQLITE_OK
+
+sqlite3_changes:
+  description: >
+    Returns the number of rows that were changed, inserted, or deleted by the most recent successful INSERT, UPDATE, or DELETE on the connection.
+  params:
+    db: Open sqlite3* connection.
+  Returns: int row count; 0 for statements that made no changes or for queries that do not modify data.
+  example_invariants:
+    - The count is connection-specific and resets after each statement execution.
+    - Changes made by triggers are included in the count.
+    - Returned value is non-negative.
+  examples:
+    - sqlite3_changes(db) >= 0
+    - sqlite3_changes(db) == 0
+
+sqlite3_close:
+  description: >
+    Closes an open sqlite3 database connection. Fails if there are unfinalized statements or unfinished backups.
+  params:
+    db: sqlite3* handle to close.
+  Returns:
+    SQLITE_OK: On success; handle is invalid after return.
+    SQLITE_BUSY: If prepared statements or backups remain active; connection remains open.
+  example_invariants:
+    - All sqlite3_stmt and sqlite3_backup objects associated with db must be finalized or finished before close succeeds.
+    - On SQLITE_BUSY, caller must finalize outstanding objects and call again.
+    - After a successful close, db must not be used.
+  examples:
+    - sqlite3_close(db) == SQLITE_OK
+    - sqlite3_close(db_with_live_stmt) == SQLITE_BUSY
+
+sqlite3_close_v2:
+  description: >
+    Attempts to close the database connection but defers final shutdown until all prepared statements are finalized. Safe to call once; subsequent calls are misuse.
+  params:
+    db: sqlite3* handle to close (may have active statements).
+  Returns:
+    SQLITE_OK: If the close is scheduled or completed.
+    SQLITE_MISUSE: If db is NULL or close_v2 is called after the handle is already closed.
+  example_invariants:
+    - After calling close_v2, the handle should not be used except to finalize remaining statements.
+    - The actual close occurs automatically when the last statement tied to db is finalized.
+    - Multiple calls on the same handle without intervening reopen result in SQLITE_MISUSE.
+  examples:
+    - sqlite3_close_v2(db) == SQLITE_OK
+    - sqlite3_close_v2(NULL) == SQLITE_OK
+
+sqlite3_column_count:
+  description: >
+    Returns the number of columns in the result set of a prepared statement.
+  params:
+    stmt: Prepared statement handle.
+  Returns: Integer column count (0 for statements that do not return data such as INSERT/UPDATE/DELETE).
+  example_invariants:
+    - stmt must be a valid prepared statement; result is stable after prepare.
+    - Column count does not change after preparation, even before stepping.
+    - Return value is non-negative.
+  examples:
+    - sqlite3_column_count(stmt) >= 0
+
+sqlite3_column_decltype:
+  description: >
+    Returns the declared type of a column in a result set, as specified in the CREATE TABLE statement.
+  params:
+    stmt: Prepared statement handle.
+    col: 0-based column index.
+  Returns: A pointer to a UTF-8 string or NULL if the type is unknown or not applicable.
+  example_invariants:
+    - col must be >= 0 and < sqlite3_column_count(stmt).
+    - The returned string is valid until the statement is finalized or re-prepared.
+    - For expressions or computed columns, the return may be NULL.
+  examples:
+    - sqlite3_column_decltype(stmt, 0) != NULL
+    - sqlite3_column_decltype(stmt, 999) == NULL
+
+sqlite3_column_int64:
+  description: >
+    Returns the value of the specified column in the current row as a 64-bit signed integer.
+  params:
+    stmt: Prepared statement handle currently positioned on a row.
+    col: 0-based column index.
+  Returns: sqlite3_int64 integer value; if the value is not an integer, it is converted.
+  example_invariants:
+    - stmt must have returned SQLITE_ROW from sqlite3_step before calling.
+    - col must be within [0, sqlite3_column_count(stmt) - 1].
+    - Conversion rules follow SQLite affinity (e.g., numeric text is parsed to integer when possible).
+  examples:
+    - sqlite3_column_int64(stmt, 0) >= 0
+    - sqlite3_column_int64(stmt, 1) == expected_id
+
+sqlite3_column_name:
+  description: >
+    Returns the name of a column in the result set of a prepared statement.
+  params:
+    stmt: Prepared statement handle.
+    col: 0-based column index.
+  Returns: UTF-8 string with the column name; never NULL for valid column indexes.
+  example_invariants:
+    - col must be >= 0 and < sqlite3_column_count(stmt).
+    - The returned pointer is valid until the statement is finalized or re-prepared.
+    - For expressions, the name may be a generated label (e.g., "expr").
+  examples:
+    - sqlite3_column_name(stmt, 0) != NULL
+    - sqlite3_column_name(stmt, 0)[0] != '\0'
+
+sqlite3_column_origin_name16:
+  description: >
+    Returns the original column name (UTF-16) for a result set column when available.
+  params:
+    stmt: Prepared statement handle.
+    col: 0-based column index.
+  Returns: UTF-16 string pointer or NULL if origin metadata is not available.
+  example_invariants:
+    - Requires SQLITE_ENABLE_COLUMN_METADATA to be enabled at compile time.
+    - Returned pointer is valid until the statement is finalized or re-prepared.
+    - For expressions or without metadata support, the return is NULL.
+  examples:
+    - sqlite3_column_origin_name16(stmt, 0) != NULL
+    - sqlite3_column_origin_name16(stmt, 0) == NULL
+
+sqlite3_column_table_name:
+  description: >
+    Returns the name of the table that provides the value for a column in the result set.
+  params:
+    stmt: Prepared statement handle.
+    col: 0-based column index.
+  Returns: UTF-8 string pointer or NULL if not available.
+  example_invariants:
+    - Requires SQLITE_ENABLE_COLUMN_METADATA to be enabled at compile time.
+    - For expressions, or if the column does not directly map to a table column, return is NULL.
+    - The returned pointer is valid until the statement is finalized or re-prepared.
+  examples:
+    - sqlite3_column_table_name(stmt, 0) != NULL
+    - sqlite3_column_table_name(stmt, 0) == NULL
+
+sqlite3_column_type:
+  description: >
+    Returns the datatype code of the value in the current row for a given column.
+  params:
+    stmt: Prepared statement handle currently positioned on a row.
+    col: 0-based column index.
+  Returns: One of SQLITE_INTEGER, SQLITE_FLOAT, SQLITE_TEXT, SQLITE_BLOB, or SQLITE_NULL.
+  example_invariants:
+    - sqlite3_step(stmt) must have returned SQLITE_ROW before calling.
+    - The return value reflects the dynamic type of the value, not the declared type.
+    - col must be within [0, sqlite3_column_count(stmt) - 1].
+  examples:
+    - sqlite3_column_type(stmt, 0) == SQLITE_INTEGER
+    - sqlite3_column_type(stmt, 1) == SQLITE_NULL
+
+sqlite3_compileoption_used:
+  description: >
+    Returns 1 if the SQLite library was compiled with the named compile-time option enabled.
+  params:
+    option_name: UTF-8 string naming a compile-time option (e.g., "ENABLE_FTS5").
+  Returns: 1 if enabled, 0 otherwise.
+  example_invariants:
+    - The comparison is case-insensitive and ignores a leading "SQLITE_" prefix.
+    - Passing NULL is treated as no match and returns 0.
+    - The function does not allocate memory and is safe to call at any time.
+  examples:
+    - sqlite3_compileoption_used("ENABLE_FTS5") == 1
+    - sqlite3_compileoption_used("NO_SUCH_OPTION") == 0
+
+sqlite3_complete:
+  description: >
+    Determines whether a UTF-8 SQL string forms one or more complete SQL statements.
+  params:
+    sql: UTF-8 SQL text.
+  Returns: Non-zero if complete, 0 if incomplete.
+  example_invariants:
+    - Trailing whitespace and comments are ignored when determining completeness.
+    - Unterminated string literals or open statements result in 0.
+    - NULL input returns 0.
+  examples:
+    - sqlite3_complete("SELECT 1;") != 0
+    - sqlite3_complete("SELECT 1") == 0
+
+sqlite3_complete16:
+  description: >
+    Determines whether a UTF-16 SQL string forms one or more complete SQL statements.
+  params:
+    sql: UTF-16 encoded SQL text.
+  Returns: Non-zero if complete, 0 if incomplete.
+  example_invariants:
+    - The input must be UTF-16 (native byte order); malformed input yields 0.
+    - Trailing comments/whitespace do not affect completeness.
+    - NULL input returns 0.
+  examples:
+    - sqlite3_complete16(L"SELECT 1;") != 0
+    - sqlite3_complete16(L"SELECT 1") == 0
+
+sqlite3_context:
+  description: >
+    Opaque context object passed to user-defined SQL functions for returning results.
+  example_invariants:
+    - The context is only valid during the invocation of the user-defined function.
+    - It is provided by SQLite and must not be freed by the user.
+    - Functions like sqlite3_result_* must be called with this pointer.
+  examples:
+    - (ctx != NULL) ? (sqlite3_result_null(ctx), 1) : 0
+    - (sizeof(sqlite3_context*) == sizeof(void*))
+
+sqlite3_data_count:
+  description: >
+    Returns the number of columns in the current result row of a prepared statement.
+  params:
+    stmt: Prepared statement handle.
+  Returns: Column count for the current row; 0 if the statement is not currently returning a row.
+  example_invariants:
+    - After sqlite3_step returns SQLITE_ROW, sqlite3_data_count equals sqlite3_column_count.
+    - After sqlite3_step returns SQLITE_DONE, the return value is 0.
+    - The value is non-negative.
+  examples:
+    - (sqlite3_step(stmt) == SQLITE_ROW) ? (sqlite3_data_count(stmt) == sqlite3_column_count(stmt)) : 1
+    - sqlite3_data_count(stmt) >= 0
+
+sqlite3_db_handle:
+  description: >
+    Returns the database connection handle associated with a prepared statement.
+  params:
+    stmt: Prepared statement handle.
+  Returns: sqlite3* database connection pointer, or NULL if stmt is NULL.
+  example_invariants:
+    - The returned handle is the same one used to prepare the statement.
+    - The handle remains valid as long as the statement and connection are valid.
+    - Passing NULL returns NULL.
+  examples:
+    - sqlite3_db_handle(stmt) == db
+    - sqlite3_db_handle(NULL) == NULL
+
+sqlite3_errmsg:
+  description: >
+    Returns a UTF-8 error message string for the most recent SQLite API call on the connection.
+  params:
+    db: Open sqlite3* connection.
+  Returns: UTF-8 string pointer describing the last error; never NULL.
+  example_invariants:
+    - The returned string is valid until the next SQLite API call on the same connection.
+    - On success, it may return "not an error" or similar informational text.
+    - db must be a valid connection handle.
+  examples:
+    - sqlite3_errmsg(db) != NULL
+    - (sqlite3_exec(db, "BAD SQL", 0, 0, 0) != SQLITE_OK)?(sqlite3_errmsg(db) != NULL) : 1
+
+sqlite3_exec:
+  description: >
+    Executes one or more SQL statements separated by semicolons using a callback for each result row.
+  params:
+    db: Open sqlite3* connection.
+    sql: UTF-8 SQL text containing one or more statements.
+    callback: Optional row callback int (*)(void*,int,char**,char**); can be NULL.
+    user_data: Opaque pointer passed to callback.
+    errmsg: Output pointer to error string (allocated with sqlite3_malloc); can be NULL.
+  Returns:
+    SQLITE_OK: If all statements execute successfully.
+    Error code: For the first failure encountered (e.g., SQLITE_ERROR, SQLITE_BUSY).
+  example_invariants:
+    - If errmsg is non-NULL and an error occurs, *errmsg is set and must be freed with sqlite3_free.
+    - The callback is invoked once per result row; returning non-zero aborts execution with SQLITE_ABORT.
+    - Statements are executed in order; later statements may not run after an error.
+  examples:
+    - sqlite3_exec(db, "CREATE TABLE t(x);", 0, 0, 0) == SQLITE_OK
+    - sqlite3_exec(db, "SELECT 1;", cb, ctx, &err) == SQLITE_OK
+
+sqlite3_expanded_sql:
+  description: >
+    Returns a newly allocated SQL string with all bound parameters expanded to their literal values.
+  params:
+    stmt: Prepared statement handle.
+  Returns: UTF-8 string allocated by SQLite (must be freed with sqlite3_free), or NULL on OOM.
+  example_invariants:
+    - The returned string reflects the current bindings at the time of call.
+    - The caller must release the string using sqlite3_free.
+    - stmt must be a valid prepared statement.
+  examples:
+    - (s = sqlite3_expanded_sql(stmt)) != NULL
+    - (sqlite3_free(sqlite3_expanded_sql(stmt)), 1)
+
+sqlite3_file:
+  description: >
+    Opaque virtual file handle used by the SQLite VFS layer. Implementations provide I/O methods.
+  example_invariants:
+    - Instances are created by a VFS xOpen method and released by xClose.
+    - The object layout begins with a pointer to the sqlite3_io_methods table.
+    - Users should not allocate or free sqlite3_file directly; use VFS APIs.
+  examples:
+    - (file != NULL) ? (file->pMethods != NULL) : 1
+    - (sizeof(sqlite3_file*) == sizeof(void*))
+
+sqlite3_finalize:
+  description: >
+    Destroys a prepared statement object and releases all associated resources.
+  params:
+    stmt: Prepared statement handle; may be NULL.
+  Returns:
+    SQLITE_OK: On success or if stmt is NULL.
+    Error code: If finalization fails due to pending errors.
+  example_invariants:
+    - After finalize, stmt must not be used.
+    - Finalizing resets any remaining resources and unlocks tables held by the statement.
+    - Passing NULL is a no-op that returns SQLITE_OK.
+  examples:
+    - sqlite3_finalize(stmt) == SQLITE_OK
+    - sqlite3_finalize(NULL) == SQLITE_OK
+
+sqlite3_free:
+  description: >
+    Frees memory that was allocated by SQLite using sqlite3_malloc, sqlite3_mprintf, or related APIs.
+  params:
+    ptr: Pointer returned by an SQLite allocator; may be NULL.
+  Returns: None (void).
+  example_invariants:
+    - It is safe to call with NULL (no-op).
+    - The pointer must originate from SQLite's memory allocator.
+    - After sqlite3_free, ptr becomes invalid and must not be used.
+  examples:
+    - (sqlite3_free(p), 1)
+    - (sqlite3_free(NULL), 1)
+
+sqlite3_get_table:
+  description: >
+    Executes a query and returns the entire result in a single memory block as a table of strings.
+  params:
+    db: Open sqlite3* connection.
+    sql: UTF-8 SQL query string.
+    result: Output pointer to an array of strings (allocated by SQLite).
+    nrow: Output pointer to row count (excluding header row).
+    ncolumn: Output pointer to column count.
+    errmsg: Output pointer to error string; can be NULL.
+  Returns:
+    SQLITE_OK: On success.
+    Error code: On failure.
+  example_invariants:
+    - The result array contains (nrow+1)*ncolumn entries, with the first row holding column names.
+    - The caller must free the result array with sqlite3_free_table.
+    - If errmsg is non-NULL on error, it must be freed with sqlite3_free.
+  examples:
+    - sqlite3_get_table(db, "SELECT 1;", &res, &nrow, &ncol, &err) == SQLITE_OK
+    - (sqlite3_get_table(db, "BAD SQL", &res, &nrow, &ncol, &err) != SQLITE_OK) ? (err != NULL) : 1
+
+sqlite3_hard_heap_limit64:
+  description: >
+    Sets and/or returns the hard upper limit on heap memory that SQLite will allocate.
+  params:
+    limit: New limit in bytes (0 to query current limit).
+  Returns: The previous heap limit in bytes.
+  example_invariants:
+    - The hard limit is a global setting and applies to all connections in the process.
+    - If limit is 0, the function does not change the setting.
+    - The returned value is non-negative.
+  examples:
+    - sqlite3_hard_heap_limit64(0) >= 0
+    - sqlite3_hard_heap_limit64(1024 * 1024) >= 0
+
+sqlite3_int64:
+  description: >
+    64-bit signed integer type used by SQLite for rowids and numeric values.
+  example_invariants:
+    - The type is exactly 8 bytes on all supported platforms.
+    - It is signed and can represent negative values.
+    - Compatible with C/C++ long long on typical platforms.
+  examples:
+    - (sizeof(sqlite3_int64) == 8)
+    - ((sqlite3_int64)1 > 0)
+
+sqlite3_interrupt:
+  description: >
+    Requests that any running statements on the connection abort as soon as possible.
+  params:
+    db: Open sqlite3* connection to interrupt.
+  Returns: None (void).
+  example_invariants:
+    - Interrupt affects only statements currently running on the same connection.
+    - The interrupted statement typically returns SQLITE_INTERRUPT.
+    - Calling when no statement is running has no effect.
+  examples:
+    - (sqlite3_interrupt(db), 1)
+    - (sqlite3_interrupt(db), sqlite3_errmsg(db) != NULL)
+
+sqlite3_keyword_check:
+  description: >
+    Checks whether the provided UTF-8 token is an SQL keyword understood by SQLite.
+  params:
+    keyword: UTF-8 string token to check.
+    length: Length of the token in bytes (or -1 for NUL-terminated string).
+  Returns: 1 if the token is a keyword, 0 otherwise.
+  example_invariants:
+    - The comparison is case-insensitive.
+    - Passing NULL returns 0.
+    - length can be -1 to use strlen(keyword).
+  examples:
+    - sqlite3_keyword_check("SELECT", -1) == 1
+    - sqlite3_keyword_check("not_a_kw", -1) == 0
+
+sqlite3_keyword_count:
+  description: >
+    Returns the number of SQL keywords recognized by SQLite.
+  params: {}
+  Returns: Integer count of keywords.
+  example_invariants:
+    - The return value is > 0.
+    - The count is stable for a given SQLite build.
+  examples:
+    - sqlite3_keyword_count() > 0
+    - sqlite3_keyword_count() == sqlite3_keyword_count()
+
+sqlite3_keyword_name:
+  description: >
+    Returns the N-th SQL keyword recognized by SQLite.
+  params:
+    index: 0-based keyword index.
+    keyword_out: Output pointer to UTF-8 keyword string (const char*).
+    length_out: Output pointer to keyword length in bytes.
+  Returns: SQLITE_OK on success, SQLITE_ERROR if index is out of range.
+  example_invariants:
+    - index must be >= 0 and < sqlite3_keyword_count().
+    - The returned pointer is valid until SQLite is shut down.
+    - length_out matches strlen(*keyword_out).
+  examples:
+    - sqlite3_keyword_name(0, &kw, &len) == SQLITE_OK
+    - sqlite3_keyword_name(sqlite3_keyword_count(), &kw, &len) == SQLITE_ERROR
+
+sqlite3_libversion:
+  description: >
+    Returns the SQLite library version string at runtime.
+  params: {}
+  Returns: UTF-8 version string (e.g., "3.45.0").
+  example_invariants:
+    - The returned pointer is static and must not be freed.
+    - The string is non-NULL and non-empty.
+  examples:
+    - sqlite3_libversion() != NULL
+    - sqlite3_libversion()[0] != '\0'
+
+sqlite3_libversion_number:
+  description: >
+    Returns the SQLite library version number at runtime as an integer.
+  params: {}
+  Returns: Integer of the form X*1000000 + Y*1000 + Z.
+  example_invariants:
+    - The return value is >= 3000000 for SQLite 3.x.
+    - The value is consistent with sqlite3_libversion().
+  examples:
+    - sqlite3_libversion_number() >= 3000000
+    - sqlite3_libversion_number() > 0
+
+sqlite3_log:
+  description: >
+    Invokes the configured error log callback with a formatted message.
+  params:
+    error_code: SQLite error code associated with the message.
+    fmt: printf-style format string.
+    ...: Format arguments.
+  Returns: None (void).
+  example_invariants:
+    - If no log callback is configured, this is a no-op.
+    - The function is thread-safe.
+    - The message is formatted using the same rules as sqlite3_mprintf.
+  examples:
+    - (sqlite3_log(SQLITE_ERROR, "oops %d", 1), 1)
+    - (sqlite3_log(SQLITE_OK, "info"), 1)
+
+sqlite3_malloc:
+  description: >
+    Allocates memory using SQLite's memory allocator.
+  params:
+    n: Number of bytes to allocate.
+  Returns: Pointer to allocated memory or NULL if allocation fails or n is 0.
+  example_invariants:
+    - The returned pointer must be freed with sqlite3_free.
+    - If n is 0, the return value may be NULL.
+    - Allocation failures return NULL without modifying SQLite error state.
+  examples:
+    - (p = sqlite3_malloc(16)) != NULL
+    - (sqlite3_free(sqlite3_malloc(0)), 1)
+
+sqlite3_malloc64:
+  description: >
+    Allocates memory using SQLite's memory allocator with a 64-bit size parameter.
+  params:
+    n: Number of bytes to allocate (sqlite3_uint64).
+  Returns: Pointer to allocated memory or NULL if allocation fails or n is 0.
+  example_invariants:
+    - The returned pointer must be freed with sqlite3_free.
+    - If n is 0, the return value may be NULL or a unique pointer that must still be freed.
+    - Allocation failures return NULL without modifying SQLite error state.
+  examples:
+    - (p = sqlite3_malloc64(1024)) != NULL
+    - (sqlite3_free(sqlite3_malloc64(0)), 1)
+
+sqlite3_memory_used:
+  description: >
+    Returns the current amount of memory in bytes used by SQLite's memory allocator.
+  params: {}
+  Returns: sqlite3_int64 byte count.
+  example_invariants:
+    - The value is non-negative.
+    - It reflects SQLite's internal allocations, not necessarily total process memory.
+  examples:
+    - sqlite3_memory_used() >= 0
+    - sqlite3_memory_used() >= sqlite3_memory_used()
+
+sqlite3_mprintf:
+  description: >
+    Formats a string using SQLite's memory allocator (printf-like) and returns a newly allocated UTF-8 string.
+  params:
+    fmt: printf-style format string.
+    ...: Format arguments.
+  Returns: Pointer to allocated string or NULL on OOM; must be freed with sqlite3_free.
+  example_invariants:
+    - The returned string is NUL-terminated.
+    - The caller must free the result using sqlite3_free.
+    - On OOM, NULL is returned.
+  examples:
+    - (s = sqlite3_mprintf("%s %d", "x", 1)) != NULL
+    - (sqlite3_free(sqlite3_mprintf("%d", 1)), 1)
+
+sqlite3_msize:
+  description: >
+    Returns the size of the memory allocation previously obtained from sqlite3_malloc or related APIs.
+  params:
+    ptr: Pointer to memory allocated by SQLite.
+  Returns: Number of bytes allocated for ptr, or 0 if ptr is NULL.
+  example_invariants:
+    - Passing NULL returns 0.
+    - The pointer must originate from SQLite's allocator.
+    - The returned size is >= the requested allocation size.
+  examples:
+    - (p = sqlite3_malloc(8)) ? (sqlite3_msize(p) >= 8) : 1
+    - sqlite3_msize(NULL) == 0
+
+sqlite3_next_stmt:
+  description: >
+    Returns the next prepared statement associated with a database connection.
+  params:
+    db: Open sqlite3* connection.
+    stmt: Current sqlite3_stmt*; pass NULL to get the first statement.
+  Returns: Next sqlite3_stmt* or NULL if no more statements exist.
+  example_invariants:
+    - Iteration order is arbitrary but stable while statements remain open.
+    - The returned statement, if non-NULL, is associated with db.
+    - Passing NULL returns the first statement or NULL if none.
+  examples:
+    - (s = sqlite3_next_stmt(db, NULL)) != NULL
+    - sqlite3_next_stmt(db, last_stmt) == NULL
+
+sqlite3_open:
+  description: >
+    Opens a SQLite database file and returns a database connection handle.
+  params:
+    filename: UTF-8 database filename ("": opens a temporary database).
+    db_out: Output pointer to sqlite3*.
+  Returns:
+    SQLITE_OK: On success.
+    Error code: On failure; db_out may still be set and must be closed.
+  example_invariants:
+    - On failure, *db_out may be non-NULL and should be closed with sqlite3_close.
+    - Passing NULL filename results in SQLITE_MISUSE.
+    - The returned handle is valid for subsequent SQLite calls.
+  examples:
+    - sqlite3_open("test.db", &db) == SQLITE_OK
+    - sqlite3_open(NULL, &db) != SQLITE_OK
+
+sqlite3_open16:
+  description: >
+    Opens a SQLite database using a UTF-16 filename.
+  params:
+    filename: UTF-16 database filename.
+    db_out: Output pointer to sqlite3*.
+  Returns:
+    SQLITE_OK: On success.
+    Error code: On failure.
+  example_invariants:
+    - On failure, *db_out may be non-NULL and should be closed.
+    - The filename must be encoded in UTF-16 native byte order.
+  examples:
+    - sqlite3_open16(L"test.db", &db) == SQLITE_OK
+    - sqlite3_open16(NULL, &db) != SQLITE_OK
+
+sqlite3_open_v2:
+  description: >
+    Opens a SQLite database with extended control over flags and VFS selection.
+  params:
+    filename: UTF-8 database filename.
+    db_out: Output pointer to sqlite3*.
+    flags: Combination of SQLITE_OPEN_* flags (e.g., READWRITE, CREATE, URI).
+    vfs: Name of the VFS to use, or NULL for default.
+  Returns:
+    SQLITE_OK: On success.
+    Error code: On failure.
+  example_invariants:
+    - If SQLITE_OPEN_URI is set, filename is interpreted as a URI.
+    - On failure, *db_out may be non-NULL and should be closed.
+    - Flags must include either SQLITE_OPEN_READONLY or SQLITE_OPEN_READWRITE.
+  examples:
+    - sqlite3_open_v2("file.db", &db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, NULL) == SQLITE_OK
+    - sqlite3_open_v2("file.db", &db, 0, NULL) != SQLITE_OK
+
+sqlite3_prepare:
+  description: >
+    Compiles a single SQL statement into a prepared statement object (legacy interface).
+  params:
+    db: Open sqlite3* connection.
+    sql: UTF-8 SQL text to compile.
+    nbyte: Maximum number of bytes to read from sql; -1 reads to the first NUL.
+    stmt_out: Output pointer to sqlite3_stmt*.
+    tail: Output pointer to unused portion of sql (can be NULL).
+  Returns:
+    SQLITE_OK: On success.
+    Error code: On failure.
+  example_invariants:
+    - On success, *stmt_out is a valid prepared statement that must be finalized.
+    - If tail is non-NULL, it points to the first byte after the compiled SQL.
+    - This is a legacy API; sqlite3_prepare_v2 is recommended.
+  examples:
+    - sqlite3_prepare(db, "SELECT 1", -1, &stmt, NULL) == SQLITE_OK
+    - sqlite3_prepare(db, "BAD SQL", -1, &stmt, NULL) != SQLITE_OK
+
+sqlite3_prepare16:
+  description: >
+    Compiles a single UTF-16 SQL statement into a prepared statement object (legacy interface).
+  params:
+    db: Open sqlite3* connection.
+    sql: UTF-16 SQL text to compile.
+    nbyte: Maximum number of bytes to read from sql; -1 reads to the first NUL.
+    stmt_out: Output pointer to sqlite3_stmt*.
+    tail: Output pointer to unused portion of sql (can be NULL).
+  Returns:
+    SQLITE_OK: On success.
+    Error code: On failure.
+  example_invariants:
+    - sql must be UTF-16 in native byte order.
+    - On success, *stmt_out must be finalized.
+    - sqlite3_prepare16_v2 is recommended for most uses.
+  examples:
+    - sqlite3_prepare16(db, L"SELECT 1", -1, &stmt, NULL) == SQLITE_OK
+    - sqlite3_prepare16(db, L"BAD SQL", -1, &stmt, NULL) != SQLITE_OK
+
+sqlite3_prepare16_v3:
+  description: >
+    Compiles a UTF-16 SQL statement into a prepared statement object with additional compile flags.
+  params:
+    db: Open sqlite3* connection.
+    sql: UTF-16 SQL text to compile.
+    nbyte: Maximum number of bytes to read from sql; -1 reads to the first NUL.
+    prep_flags: Compilation flags (e.g., SQLITE_PREPARE_PERSISTENT).
+    stmt_out: Output pointer to sqlite3_stmt*.
+    tail: Output pointer to unused portion of sql (can be NULL).
+  Returns:
+    SQLITE_OK: On success.
+    Error code: On failure.
+  example_invariants:
+    - sql must be UTF-16 in native byte order.
+    - On success, *stmt_out is valid and must be finalized.
+    - prep_flags are advisory hints to SQLite.
+  examples:
+    - sqlite3_prepare16_v3(db, L"SELECT 1", -1, 0, &stmt, NULL) == SQLITE_OK
+    - sqlite3_prepare16_v3(db, L"BAD SQL", -1, 0, &stmt, NULL) != SQLITE_OK
+
+sqlite3_prepare_v2:
+  description: >
+    Compiles a SQL statement into a prepared statement object (preferred interface).
+  params:
+    db: Open sqlite3* connection.
+    sql: UTF-8 SQL text to compile.
+    nbyte: Maximum number of bytes to read from sql; -1 reads to the first NUL.
+    stmt_out: Output pointer to sqlite3_stmt*.
+    tail: Output pointer to unused portion of sql (can be NULL).
+  Returns:
+    SQLITE_OK: On success.
+    Error code: On failure.
+  example_invariants:
+    - On success, *stmt_out is valid and must be finalized.
+    - The resulting statement will be re-prepared automatically if the schema changes.
+    - If tail is non-NULL, it points to remaining uncompiled SQL.
+  examples:
+    - sqlite3_prepare_v2(db, "SELECT 1", -1, &stmt, NULL) == SQLITE_OK
+    - sqlite3_prepare_v2(db, "BAD SQL", -1, &stmt, NULL) != SQLITE_OK
+
+sqlite3_prepare_v3:
+  description: >
+    Compiles a SQL statement into a prepared statement object with extra compile flags.
+  params:
+    db: Open sqlite3* connection.
+    sql: UTF-8 SQL text to compile.
+    nbyte: Maximum number of bytes to read from sql; -1 reads to the first NUL.
+    prep_flags: Compilation flags (e.g., SQLITE_PREPARE_PERSISTENT, SQLITE_PREPARE_NORMALIZE).
+    stmt_out: Output pointer to sqlite3_stmt*.
+    tail: Output pointer to unused portion of sql (can be NULL).
+  Returns:
+    SQLITE_OK: On success.
+    Error code: On failure.
+  example_invariants:
+    - On success, *stmt_out is valid and must be finalized.
+    - prep_flags are advisory hints to SQLite.
+    - If tail is non-NULL, it points to remaining uncompiled SQL.
+  examples:
+    - sqlite3_prepare_v3(db, "SELECT 1", -1, 0, &stmt, NULL) == SQLITE_OK
+    - sqlite3_prepare_v3(db, "BAD SQL", -1, 0, &stmt, NULL) != SQLITE_OK
+
+sqlite3_randomness:
+  description: >
+    Fills a buffer with random bytes obtained from SQLite's PRNG.
+  params:
+    n: Number of bytes to write to buffer.
+    buffer: Destination buffer.
+  Returns: None (void).
+  example_invariants:
+    - n may be 0; in that case, the function is a no-op.
+    - buffer must have at least n bytes available.
+    - The randomness is suitable for non-cryptographic uses.
+  examples:
+    - (sqlite3_randomness(16, buf), 1)
+    - (sqlite3_randomness(0, buf), 1)
+
+sqlite3_realloc:
+  description: >
+    Changes the size of a memory allocation obtained from SQLite's allocator.
+  params:
+    ptr: Pointer previously returned by sqlite3_malloc/sqlite3_malloc64 (can be NULL).
+    n: New size in bytes.
+  Returns: Pointer to resized memory or NULL on failure; original memory remains valid on failure.
+  example_invariants:
+    - If ptr is NULL, this behaves like sqlite3_malloc(n).
+    - If n is 0, the return value may be NULL or a unique pointer that must be freed.
+    - The returned pointer must be freed with sqlite3_free.
+  examples:
+    - (p = sqlite3_realloc(p, 64)) != NULL
+    - (sqlite3_free(sqlite3_realloc(NULL, 16)), 1)
+
+sqlite3_realloc64:
+  description: >
+    64-bit version of sqlite3_realloc for resizing allocations from SQLite's allocator.
+  params:
+    ptr: Pointer previously returned by sqlite3_malloc/sqlite3_malloc64 (can be NULL).
+    n: New size in bytes (sqlite3_uint64).
+  Returns: Pointer to resized memory or NULL on failure; original memory remains valid on failure.
+  example_invariants:
+    - If ptr is NULL, this behaves like sqlite3_malloc64(n).
+    - If n is 0, the return value may be NULL or a unique pointer that must be freed.
+    - The returned pointer must be freed with sqlite3_free.
+  examples:
+    - (p = sqlite3_realloc64(p, 1024)) != NULL
+    - (sqlite3_free(sqlite3_realloc64(NULL, 16)), 1)
+
+sqlite3_release_memory:
+  description: >
+    Attempts to free up as much heap memory as possible and returns the number of bytes released.
+  params:
+    n: Maximum number of bytes to release (0 to request a full release attempt).
+  Returns: The number of bytes actually released.
+  example_invariants:
+    - The returned value is between 0 and n (unless n is 0).
+    - The function may return 0 if no memory can be released.
+    - This affects SQLite's internal caches and may impact performance.
+  examples:
+    - sqlite3_release_memory(0) >= 0
+    - sqlite3_release_memory(1024) <= 1024
+
+sqlite3_reset:
+  description: >
+    Resets a prepared statement object back to its initial state, ready to be re-executed.
+  params:
+    stmt: Prepared statement handle.
+  Returns:
+    SQLITE_OK: If the reset was successful.
+    Error code: If the most recent sqlite3_step failed; that error code is returned.
+  example_invariants:
+    - Reset does not clear bindings; use sqlite3_clear_bindings if needed.
+    - After reset, the statement can be re-executed with sqlite3_step.
+    - stmt must be a valid prepared statement.
+  examples:
+    - sqlite3_reset(stmt) == SQLITE_OK
+    - (sqlite3_step(stmt) == SQLITE_DONE) ? (sqlite3_reset(stmt) == SQLITE_OK) : 1
+
+sqlite3_reset_auto_extension:
+  description: >
+    Disables all auto-loaded extensions and clears the auto-extension list.
+  params: {}
+  Returns: None (void).
+  example_invariants:
+    - After calling, no auto-extensions will be loaded for future connections.
+    - This does not unload extensions that are already loaded.
+  examples:
+    - (sqlite3_reset_auto_extension(), 1)
+    - (sqlite3_reset_auto_extension(), 1)
+
+sqlite3_result_int:
+  description: >
+    Sets the result of a user-defined SQL function to a 32-bit integer.
+  params:
+    ctx: sqlite3_context* provided to the function.
+    value: Integer result value.
+  Returns: None (void).
+  example_invariants:
+    - ctx must be valid and provided by SQLite during function invocation.
+    - The value is stored with INTEGER type affinity.
+  examples:
+    - (sqlite3_result_int(ctx, 42), 1)
+    - (sqlite3_result_int(ctx, -1), 1)
+
+sqlite3_result_null:
+  description: >
+    Sets the result of a user-defined SQL function to NULL.
+  params:
+    ctx: sqlite3_context* provided to the function.
+  Returns: None (void).
+  example_invariants:
+    - ctx must be valid during the callback.
+    - The resulting SQL value is NULL.
+  examples:
+    - (sqlite3_result_null(ctx), 1)
+    - (sqlite3_result_null(ctx), 1)
+
+sqlite3_result_pointer:
+  description: >
+    Sets the result of a user-defined SQL function to a pointer value with an optional type tag and destructor.
+  params:
+    ctx: sqlite3_context* provided to the function.
+    ptr: Pointer value to return (can be NULL).
+    type: Type tag string to distinguish pointer types (can be NULL).
+    destructor: Destructor called when SQLite disposes of the pointer (can be NULL).
+  Returns: None (void).
+  example_invariants:
+    - The pointer is retrieved using sqlite3_value_pointer with the matching type tag.
+    - If destructor is provided, SQLite will call it when the value is no longer needed.
+    - ctx must be valid during the callback.
+  examples:
+    - (sqlite3_result_pointer(ctx, p, "mytype", my_free), 1)
+    - (sqlite3_result_pointer(ctx, NULL, NULL, NULL), 1)
+
+sqlite3_shutdown:
+  description: >
+    Shuts down the SQLite library, releasing global resources.
+  params: {}
+  Returns:
+    SQLITE_OK: On success.
+    SQLITE_BUSY: If the library is still in use by open connections.
+  example_invariants:
+    - All database connections must be closed before shutdown succeeds.
+    - After shutdown, sqlite3_initialize is required before using SQLite again.
+  examples:
+    - sqlite3_shutdown() == SQLITE_OK
+    - sqlite3_shutdown() == SQLITE_BUSY
+
+sqlite3_sleep:
+  description: >
+    Suspends execution for at least the specified number of milliseconds.
+  params:
+    ms: Minimum sleep time in milliseconds.
+  Returns: The number of milliseconds actually slept.
+  example_invariants:
+    - The return value is >= 0.
+    - The actual sleep time may be longer than requested due to scheduling.
+  examples:
+    - sqlite3_sleep(10) >= 10
+    - sqlite3_sleep(0) >= 0
+
+sqlite3_snapshot:
+  description: >
+    Opaque object representing a database snapshot for use with the snapshot API (wal/snapshot).
+  example_invariants:
+    - Snapshots are obtained via sqlite3_snapshot_get and must be freed with sqlite3_snapshot_free.
+    - A snapshot is associated with a specific database connection and schema.
+    - Snapshots are only supported on WAL-mode databases.
+  examples:
+    - (snapshot != NULL)
+    - (sizeof(sqlite3_snapshot*) == sizeof(void*))
+
+sqlite3_snapshot_cmp:
+  description: >
+    Compares two snapshot objects to determine which is newer.
+  params:
+    a: First sqlite3_snapshot pointer.
+    b: Second sqlite3_snapshot pointer.
+  Returns: < 0 if a is older than b, 0 if equal, > 0 if a is newer.
+  example_invariants:
+    - Both snapshots must be from the same database/schema.
+    - The comparison is total ordering within a single WAL timeline.
+    - If either argument is NULL, behavior is undefined.
+  examples:
+    - sqlite3_snapshot_cmp(a, b) <= 0 || sqlite3_snapshot_cmp(a, b) >= 0
+    - sqlite3_snapshot_cmp(a, a) == 0
+
+sqlite3_snapshot_open:
+  description: >
+    Opens a read transaction on a database connection using a specified snapshot.
+  params:
+    db: Open sqlite3* connection.
+    schema: Schema name (e.g., "main").
+    snapshot: sqlite3_snapshot* previously obtained for the same schema.
+  Returns:
+    SQLITE_OK: On success.
+    SQLITE_ERROR or SQLITE_MISUSE: If the snapshot is invalid or incompatible.
+  example_invariants:
+    - The database must be in WAL mode.
+    - snapshot must belong to the same database and schema.
+    - The call opens a read transaction at the snapshot's position.
+  examples:
+    - sqlite3_snapshot_open(db, "main", snapshot) == SQLITE_OK
+    - sqlite3_snapshot_open(db, "main", NULL) != SQLITE_OK
+
+sqlite3_snprintf:
+  description: >
+    Formats a string into a fixed-size buffer using SQLite's printf implementation.
+  params:
+    n: Size of the output buffer in bytes.
+    buffer: Destination buffer.
+    fmt: printf-style format string.
+    ...: Format arguments.
+  Returns: Pointer to buffer.
+  example_invariants:
+    - The output is always NUL-terminated if n > 0.
+    - At most n-1 bytes of formatted text are written.
+    - buffer must be at least n bytes.
+  examples:
+    - sqlite3_snprintf(16, buf, "%d", 123) == buf
+    - sqlite3_snprintf(1, buf, "%s", "x")[0] == '\0'
+
+sqlite3_status:
+  description: >
+    Retrieves runtime status parameters for SQLite (current and highwater values).
+  params:
+    op: Status parameter identifier (e.g., SQLITE_STATUS_MEMORY_USED).
+    current: Output pointer for current value.
+    highwater: Output pointer for highest value.
+    reset_flag: If non-zero, resets the highwater value.
+  Returns:
+    SQLITE_OK: On success.
+    SQLITE_ERROR: If op is invalid.
+  example_invariants:
+    - current and highwater are set on success.
+    - reset_flag only affects the highwater output, not the current value.
+  examples:
+    - sqlite3_status(SQLITE_STATUS_MEMORY_USED, &cur, &hi, 0) == SQLITE_OK
+    - sqlite3_status(SQLITE_STATUS_MEMORY_USED, &cur, &hi, 1) == SQLITE_OK
+
+sqlite3_status64:
+  description: >
+    64-bit version of sqlite3_status returning 64-bit current and highwater values.
+  params:
+    op: Status parameter identifier.
+    current: Output pointer for current value (sqlite3_int64).
+    highwater: Output pointer for highest value (sqlite3_int64).
+    reset_flag: If non-zero, resets the highwater value.
+  Returns:
+    SQLITE_OK: On success.
+    SQLITE_ERROR: If op is invalid.
+  example_invariants:
+    - current and highwater are set on success.
+    - reset_flag only affects the highwater output, not the current value.
+    - Values can exceed 32-bit limits.
+  examples:
+    - sqlite3_status64(SQLITE_STATUS_MEMORY_USED, &cur, &hi, 0) == SQLITE_OK
+    - sqlite3_status64(SQLITE_STATUS_MEMORY_USED, &cur, &hi, 1) == SQLITE_OK
+
+sqlite3_step:
+  description: >
+    Advances a prepared statement to the next result row or completes execution.
+  params:
+    stmt: Prepared statement handle.
+  Returns:
+    SQLITE_ROW: A row of data is available.
+    SQLITE_DONE: Statement has finished executing.
+    Error code: On failure (e.g., SQLITE_ERROR, SQLITE_BUSY, SQLITE_INTERRUPT).
+  example_invariants:
+    - sqlite3_column_* functions are valid only after SQLITE_ROW is returned.
+    - After SQLITE_DONE, the statement can be reset and re-executed.
+    - On error, sqlite3_errmsg(sqlite3_db_handle(stmt)) describes the failure.
+  examples:
+    - sqlite3_step(stmt) == SQLITE_ROW
+    - sqlite3_step(stmt) == SQLITE_DONE
+
+sqlite3_stmt:
+  description: >
+    Opaque object representing a compiled SQL statement (prepared statement).
+  example_invariants:
+    - Statements are created by sqlite3_prepare* and destroyed by sqlite3_finalize.
+    - A statement is bound to its originating database connection.
+    - The handle is not thread-safe unless SQLite is compiled in serialized mode.
+  examples:
+    - (stmt != NULL)
+    - (sizeof(sqlite3_stmt*) == sizeof(void*))
+
+sqlite3_stmt_busy:
+  description: >
+    Returns non-zero if a prepared statement is currently executing or has not been fully stepped to completion.
+  params:
+    stmt: Prepared statement handle.
+  Returns: Non-zero if busy, 0 otherwise.
+  example_invariants:
+    - After sqlite3_step returns SQLITE_ROW, the statement is busy until SQLITE_DONE or sqlite3_reset.
+    - A freshly prepared or reset statement is not busy.
+  examples:
+    - sqlite3_stmt_busy(stmt) == 0
+    - sqlite3_stmt_busy(stmt) != 0
+
+sqlite3_stmt_explain:
+  description: >
+    Indicates whether a prepared statement was created from EXPLAIN or EXPLAIN QUERY PLAN.
+  params:
+    stmt: Prepared statement handle.
+  Returns: 0 for normal statements, 1 for EXPLAIN, 2 for EXPLAIN QUERY PLAN.
+  example_invariants:
+    - The return value is stable for the lifetime of the statement.
+    - stmt must be valid.
+  examples:
+    - sqlite3_stmt_explain(stmt) == 0
+    - sqlite3_stmt_explain(stmt) == 1 || sqlite3_stmt_explain(stmt) == 2
+
+sqlite3_stmt_scanstatus_reset:
+  description: >
+    Resets accumulated scan status statistics for a prepared statement.
+  params:
+    stmt: Prepared statement handle.
+  Returns: None (void).
+  example_invariants:
+    - Only effective when compiled with SQLITE_ENABLE_STMT_SCANSTATUS.
+    - It does not modify bindings or the execution state of the statement.
+  examples:
+    - (sqlite3_stmt_scanstatus_reset(stmt), 1)
+
+sqlite3_str:
+  description: >
+    Opaque string builder object used by the sqlite3_str_* API family.
+  example_invariants:
+    - Instances are created by sqlite3_str_new and released by sqlite3_str_finish.
+    - The object owns an internal buffer allocated with SQLite's allocator.
+    - Not thread-safe unless SQLite is compiled in serialized mode.
+  examples:
+    - (s != NULL)
+    - (sizeof(sqlite3_str*) == sizeof(void*))
+
+sqlite3_str_append:
+  description: >
+    Appends a string of known length to an sqlite3_str object.
+  params:
+    s: sqlite3_str* string builder.
+    text: UTF-8 text to append (can be NULL if n is 0).
+    n: Number of bytes to append; -1 uses strlen(text).
+  Returns: None (void).
+  example_invariants:
+    - If n is 0, the function is a no-op regardless of text.
+    - text must be valid UTF-8 when n > 0.
+    - Errors are recorded in the sqlite3_str object and reported by sqlite3_str_errcode.
+  examples:
+    - (sqlite3_str_append(s, "abc", -1), 1)
+    - (sqlite3_str_append(s, NULL, 0), 1)
+
+sqlite3_str_appendall:
+  description: >
+    Appends a NUL-terminated UTF-8 string to an sqlite3_str object.
+  params:
+    s: sqlite3_str* string builder.
+    text: NUL-terminated UTF-8 string (can be NULL, treated as empty).
+  Returns: None (void).
+  example_invariants:
+    - Passing NULL is treated as appending an empty string.
+    - Errors are recorded in the sqlite3_str object.
+  examples:
+    - (sqlite3_str_appendall(s, "abc"), 1)
+    - (sqlite3_str_appendall(s, NULL), 1)
+
+sqlite3_str_appendchar:
+  description: >
+    Appends one or more copies of a single character to an sqlite3_str object.
+  params:
+    s: sqlite3_str* string builder.
+    n: Number of copies to append (0 is allowed).
+    c: Character to append.
+  Returns: None (void).
+  example_invariants:
+    - If n is 0, the function is a no-op.
+    - Errors are recorded in the sqlite3_str object.
+  examples:
+    - (sqlite3_str_appendchar(s, 3, 'x'), 1)
+    - (sqlite3_str_appendchar(s, 0, 'x'), 1)
+
+sqlite3_str_errcode:
+  description: >
+    Returns the error code associated with an sqlite3_str object.
+  params:
+    s: sqlite3_str* string builder.
+  Returns: SQLITE_OK on success, or an error code such as SQLITE_NOMEM.
+  example_invariants:
+    - If an allocation fails during appends, the error code becomes SQLITE_NOMEM.
+    - The error code persists until the object is finished.
+  examples:
+    - sqlite3_str_errcode(s) == SQLITE_OK
+    - sqlite3_str_errcode(s) == SQLITE_NOMEM
+
+sqlite3_str_finish:
+  description: >
+    Finalizes an sqlite3_str object and returns the accumulated string.
+  params:
+    s: sqlite3_str* string builder.
+  Returns: UTF-8 string allocated by SQLite (must be freed with sqlite3_free), or NULL on error.
+  example_invariants:
+    - The sqlite3_str object is invalid after this call and must not be used.
+    - On SQLITE_NOMEM, NULL is returned.
+    - The caller must free the returned string with sqlite3_free.
+  examples:
+    - (out = sqlite3_str_finish(s)) != NULL
+    - (sqlite3_free(sqlite3_str_finish(s)), 1)
+
+sqlite3_str_new:
+  description: >
+    Creates a new sqlite3_str string builder object using the specified database connection.
+  params:
+    db: sqlite3* connection for memory context (can be NULL for default allocator).
+  Returns: sqlite3_str* handle or NULL on OOM.
+  example_invariants:
+    - The returned object must be finalized with sqlite3_str_finish.
+    - If db is NULL, the default memory allocator is used.
+    - The object starts empty and has SQLITE_OK status.
+  examples:
+    - (s = sqlite3_str_new(db)) != NULL
+    - sqlite3_str_errcode(sqlite3_str_new(NULL)) == SQLITE_OK
+
+sqlite3_str_reset:
+  description: >
+    Resets an sqlite3_str object to empty and clears any error state.
+  params:
+    s: sqlite3_str* string builder.
+  Returns: None (void).
+  example_invariants:
+    - After reset, sqlite3_str_errcode returns SQLITE_OK.
+    - The internal buffer is reused; capacity may remain allocated.
+  examples:
+    - (sqlite3_str_reset(s), sqlite3_str_errcode(s) == SQLITE_OK)
+    - (sqlite3_str_reset(s), 1)
+
+sqlite3_str_value:
+  description: >
+    Returns the current contents of an sqlite3_str object without finalizing it.
+  params:
+    s: sqlite3_str* string builder.
+  Returns: Pointer to a UTF-8 string owned by the sqlite3_str object, or NULL on error.
+  example_invariants:
+    - The returned pointer is valid until the next modification or sqlite3_str_finish.
+    - The returned string is NUL-terminated.
+    - If an error occurred, NULL may be returned.
+  examples:
+    - sqlite3_str_value(s) != NULL
+    - sqlite3_str_value(s)[0] != '\0'
+
+sqlite3_strglob:
+  description: >
+    Performs GLOB-style pattern matching using SQLite's rules.
+  params:
+    pattern: UTF-8 GLOB pattern.
+    text: UTF-8 text to match.
+  Returns: 0 if match succeeds, non-zero if it fails.
+  example_invariants:
+    - Uses SQLite's glob syntax: * with character classes in [..].
+    - The comparison is case-sensitive.
+    - NULL inputs result in non-zero (no match).
+  examples:
+    - sqlite3_strglob("a*", "abc") == 0
+    - sqlite3_strglob("a?c", "ab") != 0
+
+sqlite3_stricmp:
+  description: >
+    Case-insensitive string comparison using SQLite's ASCII rules.
+  params:
+    a: UTF-8 string.
+    b: UTF-8 string.
+  Returns: < 0, 0, or > 0 according to lexicographic order (case-insensitive).
+  example_invariants:
+    - Comparison is ASCII-only; locale is ignored.
+    - If both strings are equal ignoring case, return is 0.
+  examples:
+    - sqlite3_stricmp("abc", "ABC") == 0
+    - sqlite3_stricmp("a", "b") < 0
+
+sqlite3_strnicmp:
+  description: >
+    Case-insensitive string comparison of the first n bytes using SQLite's ASCII rules.
+  params:
+    a: UTF-8 string.
+    b: UTF-8 string.
+    n: Maximum number of bytes to compare.
+  Returns: < 0, 0, or > 0 according to lexicographic order (case-insensitive).
+  example_invariants:
+    - If n is 0, the return value is 0.
+    - Comparison is ASCII-only; locale is ignored.
+  examples:
+    - sqlite3_strnicmp("abcdef", "ABCzzz", 3) == 0
+    - sqlite3_strnicmp("a", "b", 1) < 0
+
+sqlite3_system_errno:
+  description: >
+    Returns the most recent system-level errno value encountered by SQLite on a connection.
+  params:
+    db: Open sqlite3* connection.
+  Returns: Integer errno value (platform-specific).
+  example_invariants:
+    - The value is meaningful only immediately after an I/O-related error.
+    - If no system error occurred, the return value may be 0.
+    - db must be a valid connection handle.
+  examples:
+    - sqlite3_system_errno(db) >= 0
+    - (sqlite3_exec(db, "BAD SQL", 0, 0, 0), sqlite3_system_errno(db) >= 0)
+
+sqlite3_thread_cleanup:
+  description: >
+    Frees thread-specific resources used by SQLite in the current thread.
+  params: {}
+  Returns: None (void).
+  example_invariants:
+    - Only affects the calling thread.
+    - Safe to call multiple times.
+    - In most builds it is a no-op; kept for backwards compatibility.
+  examples:
+    - (sqlite3_thread_cleanup(), 1)
+    - (sqlite3_thread_cleanup(), 1)
+
+sqlite3_threadsafe:
+  description: >
+    Reports whether SQLite was compiled with thread-safety enabled.
+  params: {}
+  Returns: 0 if not threadsafe, 1 or 2 if threadsafe.
+  example_invariants:
+    - Return value is compile-time constant for a given library build.
+    - 0 means no mutexes; 1/2 indicate serialized or multi-thread mode.
+  examples:
+    - sqlite3_threadsafe() >= 0
+    - sqlite3_threadsafe() == sqlite3_threadsafe()
+
+sqlite3_uint64:
+  description: >
+    64-bit unsigned integer type used by SQLite for sizes and internal counters.
+  example_invariants:
+    - The type is exactly 8 bytes on all supported platforms.
+    - It is unsigned and cannot represent negative values.
+  examples:
+    - (sizeof(sqlite3_uint64) == 8)
+    - ((sqlite3_uint64)0 >= 0)
+
+sqlite3_value:
+  description: >
+    Opaque object representing a SQL value passed to user-defined functions or collations.
+  example_invariants:
+    - Instances are provided by SQLite and must not be freed by the user.
+    - Values are inspected using sqlite3_value_* accessors.
+    - The object is valid only during the callback.
+  examples:
+    - (value != NULL)
+    - (sizeof(sqlite3_value*) == sizeof(void*))
+
+
